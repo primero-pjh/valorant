@@ -53,6 +53,10 @@ button:disabled{opacity:.45;cursor:not-allowed}
 .tl .chip img{width:16px;height:16px}
 .tl .chip.sold{opacity:.4}
 .tl .chip.now{outline:2px solid var(--ac)}
+.ladwrap{overflow-x:auto;margin-top:8px}
+#ladSvg{display:block;margin:0 auto}
+#ladSvg text{font-size:12px;font-family:inherit}
+#ladSvg .run{fill:none;stroke-width:4;stroke-linecap:round;stroke-linejoin:round;transition:stroke-dashoffset 3.2s ease-in-out}
 .room>div>.card:last-child{margin-bottom:0}
 .stage{text-align:center;padding:22px 14px}
 .stage .rd{font-size:12px;color:var(--mut);letter-spacing:1px}
@@ -134,6 +138,15 @@ button:disabled{opacity:.45;cursor:not-allowed}
 
     <div class="row"><button class="pri" id="create" style="flex:1;padding:14px">🔨 경매방 만들기</button></div>
     <div class="msg" id="createMsg"></div>
+
+    <div class="card" style="margin-top:14px">
+      <h2>🪜 사다리타기 팀 나누기</h2>
+      <div class="note">경매 대신 위의 선수 전원이 동시에 사다리를 타서 팀장 수만큼 팀을 나눠요. 누를 때마다 사다리가 새로 만들어져요.</div>
+      <div class="row" style="margin-top:8px"><button class="gold" id="ladGo">🎲 사다리 출발</button><button id="ladCopy" hidden>📋 결과 복사</button></div>
+      <div class="msg" id="ladMsg"></div>
+      <div class="ladwrap"><svg id="ladSvg" hidden></svg></div>
+      <div class="teams" id="ladRes" style="margin-top:10px"></div>
+    </div>
   </div>
 
   <!-- 방 만든 직후: 링크 나눠주기 -->
@@ -263,6 +276,52 @@ function initSetup(){
   // 선수 목록이 비어 있으면 처음 열 때 명단을 기본으로 채운다
   if(!P.length)loadRoster(true);
   loadAgents(renderP);
+
+  // 사다리타기: 선수 전원이 동시에 타고, 바닥 칸은 팀장 수만큼 팀을 고르게 반복해 놓는다
+  var LCOL=["#ff4655","#4ade80","#e8b94a","#60a5fa","#c38bff","#f472b6","#2dd4bf","#fb923c","#a3e635","#cbd5e1"];
+  function ladderTeams(){return caps.map(function(c,i){return {name:c.name.trim()||"팀 "+(i+1),col:LCOL[i%LCOL.length],mem:[]}})}
+  function ladderText(teams){return "🪜 사다리 팀 나누기 결과\n"+teams.map(function(t){return "👑 "+t.name+": "+t.mem.join(", ")}).join("\n")}
+  $("ladGo").onclick=function(){
+    var cn=capNames(),names=P.map(function(p){return p.n}).filter(function(n){return cn.indexOf(n.toLowerCase())<0});
+    var teams=ladderTeams(),M=names.length,N=teams.length;
+    $("ladMsg").textContent=M<N?"선수가 팀장 수("+N+"명)보다 적어요":"";
+    if(M<N)return;
+    // 바닥 칸: 팀 번호를 고르게 깔고 섞는다
+    var bottom=names.map(function(_,i){return i%N});
+    for(var i=M-1;i>0;i--){var j=Math.floor(Math.random()*(i+1)),t=bottom[i];bottom[i]=bottom[j];bottom[j]=t}
+    // 가로줄: 같은 높이에서 이웃한 가로줄이 붙지 않게
+    var R=Math.max(8,M*2),rung=[];
+    for(var r=0;r<R;r++){rung[r]=[];for(var c=0;c<M-1;c++)rung[r][c]=!(c>0&&rung[r][c-1])&&Math.random()<.42}
+    var W=Math.max(64,Math.min(96,Math.floor(700/M))),top=28,gap=22,H=top+R*gap+gap,svgW=W*M;
+    var X=function(c){return W/2+c*W},Y=function(r){return top+gap/2+r*gap+gap/2};
+    var h='';
+    for(c=0;c<M;c++)h+='<line x1="'+X(c)+'" y1="'+top+'" x2="'+X(c)+'" y2="'+H+'" stroke="#3a3f4b" stroke-width="3"/>';
+    for(r=0;r<R;r++)for(c=0;c<M-1;c++)if(rung[r][c])h+='<line x1="'+X(c)+'" y1="'+Y(r)+'" x2="'+X(c+1)+'" y2="'+Y(r)+'" stroke="#3a3f4b" stroke-width="3"/>';
+    var runs=names.map(function(n,s){
+      var c=s,pts=[[X(c),top]];
+      for(var r=0;r<R;r++){
+        if(c<M-1&&rung[r][c]){pts.push([X(c),Y(r)]);c++;pts.push([X(c),Y(r)])}
+        else if(c>0&&rung[r][c-1]){pts.push([X(c),Y(r)]);c--;pts.push([X(c),Y(r)])}
+      }
+      pts.push([X(c),H]);
+      var len=0;for(var k=1;k<pts.length;k++)len+=Math.abs(pts[k][0]-pts[k-1][0])+Math.abs(pts[k][1]-pts[k-1][1]);
+      return {n:n,end:c,pts:pts,len:len};
+    });
+    runs.forEach(function(u){var t=teams[bottom[u.end]];
+      h+='<polyline class="run" points="'+u.pts.map(function(p){return p.join(",")}).join(" ")+'" stroke="'+t.col+'" stroke-opacity=".85" style="stroke-dasharray:'+u.len+';stroke-dashoffset:'+u.len+'"/>'});
+    names.forEach(function(n,c){h+='<text x="'+X(c)+'" y="16" text-anchor="middle" fill="#f3ead8">'+esc(n.length>6?n.slice(0,6)+"…":n)+'</text>'});
+    bottom.forEach(function(b,c){h+='<text x="'+X(c)+'" y="'+(H+18)+'" text-anchor="middle" fill="'+teams[b].col+'" font-weight="700">'+esc(teams[b].name.length>6?teams[b].name.slice(0,6)+"…":teams[b].name)+'</text>'});
+    var svg=$("ladSvg");svg.setAttribute("width",svgW);svg.setAttribute("height",H+26);svg.setAttribute("viewBox","0 0 "+svgW+" "+(H+26));
+    svg.innerHTML=h;svg.hidden=false;$("ladRes").innerHTML="";$("ladCopy").hidden=true;$("ladGo").disabled=true;
+    svg.getBoundingClientRect();
+    [].forEach.call(svg.querySelectorAll(".run"),function(el){el.style.strokeDashoffset=0});
+    runs.forEach(function(u){teams[bottom[u.end]].mem.push(u.n)});
+    setTimeout(function(){
+      $("ladRes").innerHTML=teams.map(function(t){return '<div class="team" style="border-color:'+t.col+'"><h3 style="color:'+t.col+'">👑 '+esc(t.name)+'<span>'+(t.mem.length+1)+'명</span></h3><ul>'+t.mem.map(function(n){var p=P.filter(function(x){return x.n===n})[0]||{};return '<li>'+esc(n)+(p.tier?' <small>'+esc(p.tier)+'</small>':'')+'</li>'}).join("")+'</ul></div>'}).join("");
+      $("ladCopy").hidden=false;$("ladGo").disabled=false;
+      $("ladCopy").onclick=function(e){copy(ladderText(teams),e.target)};
+    },3300);
+  };
   $("create").onclick=function(){
     var btn=$("create"),cn=capNames();
     var body={caps:caps.map(function(c){return{name:c.name.trim(),points:Math.round(+c.points)}}),
