@@ -43,7 +43,15 @@ button:disabled{opacity:.45;cursor:not-allowed}
 .lk code{flex:1;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;color:var(--mut);font-size:12px}
 .badge{display:inline-block;padding:2px 8px;border-radius:999px;font-size:12px;background:var(--chip);color:var(--gold);font-weight:700}
 .room{display:grid;gap:14px;grid-template-columns:1fr}
-@media(min-width:880px){.room{grid-template-columns:minmax(0,1.15fr) minmax(0,1fr)}}
+@media(min-width:880px){.room{grid-template-columns:minmax(0,1.15fr) minmax(0,1fr)}.room>.tiercol{grid-column:1/-1}}
+@media(min-width:1240px){.wrap.wide{max-width:1400px}.room{grid-template-columns:minmax(0,1.15fr) minmax(0,1fr) minmax(0,.8fr)}.room>.tiercol{grid-column:auto}}
+.tl{display:flex;flex-direction:column;gap:6px}
+.tl .tr{display:flex;gap:8px;align-items:flex-start;padding:6px;border-radius:6px;background:#0b0c1088}
+.tl .tg{flex:0 0 58px;font-size:12px;font-weight:800;text-align:center;padding:4px 0;border-radius:4px;color:#111}
+.tl .tp{display:flex;flex-wrap:wrap;gap:4px;min-width:0}
+.tl .chip{font-size:12px;padding:3px 8px}
+.tl .chip.sold{opacity:.4}
+.tl .chip.now{outline:2px solid var(--ac)}
 .room>div>.card:last-child{margin-bottom:0}
 .stage{text-align:center;padding:22px 14px}
 .stage .rd{font-size:12px;color:var(--mut);letter-spacing:1px}
@@ -156,6 +164,9 @@ button:disabled{opacity:.45;cursor:not-allowed}
         <div class="card"><h2>🛡️ 팀 현황</h2><div class="teams" id="teams"></div></div>
         <div class="card"><h2>🔢 경매 순서 <span class="note" id="leftCnt"></span></h2><div class="pl" id="left" style="margin-top:0"></div></div>
         <div class="card"><h2>📜 기록</h2><div class="log" id="log"></div></div>
+      </div>
+      <div class="tiercol">
+        <div class="card"><h2>🏆 티어 리스트 <span class="note" id="tierCnt"></span></h2><div class="tl" id="tierList"></div></div>
       </div>
     </div>
   </div>
@@ -317,7 +328,7 @@ function initRoom(){
 
   function render(){
     document.title=(S.cur?S.cur.n+" · ":"")+"발로란트 경매 내전";
-    renderStage();renderBid();renderHost();renderTeams();renderLeft();
+    renderStage();renderBid();renderHost();renderTeams();renderLeft();renderTiers();
     $("log").innerHTML=S.log.slice().reverse().map(function(l){var d=new Date(l.at);return '<div>'+String(d.getHours()).padStart(2,"0")+':'+String(d.getMinutes()).padStart(2,"0")+':'+String(d.getSeconds()).padStart(2,"0")+' · '+esc(l.msg)+'</div>'}).join("");
   }
   function roleBadge(){return S.role.host?"진행자":S.role.cap>=0?"팀장 "+capLabel(S.role.cap):"관전 중"}
@@ -385,6 +396,21 @@ function initRoom(){
     var list=(S.cur?[chip(S.cur.n,0,true)]:[]).concat(S.pool.map(function(n,i){return chip(n,i+1)}));
     $("left").innerHTML=list.join("")||'<span class="note">없음</span>';
     $("leftCnt").textContent="남은 "+S.pool.length+"명 · 점선은 유찰된 선수";
+  }
+  // 티어 리스트: 선수를 티어 계열별 한 줄로, 낙찰된 선수는 흐리게 + 팀장 표시
+  var TL=[["레디언트","#fff3a3"],["불멸","#e0425b"],["초월자","#2ecc71"],["다이아","#c38bff"],["플래티넘","#38b2ac"],["골드","#e8b94a"],["실버","#cfd6dc"],["브론즈","#b57a4a"],["아이언","#8a8a8a"],["미정","#4a4f5a"]];
+  function renderTiers(){
+    var by={},rank={};S.caps.forEach(function(c,ci){c.team.forEach(function(t){by[t.n]=ci})});
+    TIERS.forEach(function(t,i){rank[t]=i});
+    var rows={};TL.forEach(function(t){rows[t[0]]=[]});
+    Object.keys(S.info).forEach(function(n){var t=S.info[n].tier||"",g=t?t.split(" ")[0]:"미정";(rows[g]||rows["미정"]).push(n)});
+    var cur=S.cur&&S.cur.n,sold=Object.keys(by).length,all=Object.keys(S.info).length;
+    $("tierList").innerHTML=TL.filter(function(t){return rows[t[0]].length}).map(function(t){
+      var ps=rows[t[0]].sort(function(a,b){return (rank[S.info[b].tier]||0)-(rank[S.info[a].tier]||0)});
+      return '<div class="tr"><div class="tg" style="background:'+t[1]+'">'+t[0]+'</div><div class="tp">'+ps.map(function(n){
+        var d=(S.info[n].tier||"").split(" ")[1]||"",ci=by[n];
+        return '<span class="chip'+(ci>=0?" sold":"")+(n===cur?" now":"")+'"'+(ci>=0?' title="'+esc(capLabel(ci))+' 팀"':'')+'>'+esc(n)+(d?' <small>'+d+'</small>':'')+(ci>=0?' <small>→'+esc(capLabel(ci))+'</small>':'')+'</span>'}).join("")+'</div></div>'}).join("")||'<span class="note">선수가 없어요</span>';
+    $("tierCnt").textContent="낙찰 "+sold+"/"+all+"명";
   }
   function tickClock(){
     var el=$("clock");if(!el||!S||!S.cur)return;
