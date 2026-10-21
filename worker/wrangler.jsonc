@@ -2,6 +2,8 @@
   "name": "valorant-auction",
   "main": "src/index.js",
   "compatibility_date": "2026-06-01",
+  // public/index.html(경매 페이지)을 / 에서 서빙. 파일에 없는 경로(/rooms...)는 src/index.js로 간다
+  "assets": { "directory": "./public" },
   "durable_objects": {
     "bindings": [{ "name": "ROOM", "class_name": "AuctionRoom" }]
   },

@@ -1,5 +1,5 @@
 import { DurableObject } from "cloudflare:workers";
-import { createState, start, pause, resume, bid, tick, view, roleFor } from "./auction.js";
+import { createState, start, end, pause, resume, bid, tick, view, roleFor } from "./auction.js";
 
 const CORS = {
   "Access-Control-Allow-Origin": "*",
@@ -46,11 +46,22 @@ export default {
   },
 };
 
+// v1 방(유찰 목록이 따로 있던 형식)을 v2(유찰 선수는 순서 맨 뒤로)로 바꾼다
+function upgrade(s) {
+  if (!s || s.v >= 2) return s;
+  s.pool = s.pool.concat(s.passed || []);
+  s.passes = {};
+  for (const n of s.passed || []) s.passes[n] = 1;
+  delete s.passed; delete s.round;
+  s.v = 2;
+  return s;
+}
+
 export class AuctionRoom extends DurableObject {
   constructor(ctx, env) {
     super(ctx, env);
     this.s = null;
-    ctx.blockConcurrencyWhile(async () => { this.s = (await ctx.storage.get("s")) || null; });
+    ctx.blockConcurrencyWhile(async () => { this.s = upgrade((await ctx.storage.get("s")) || null); });
     ctx.setWebSocketAutoResponse(new WebSocketRequestResponsePair("ping", "pong"));
   }
 
@@ -60,7 +71,7 @@ export class AuctionRoom extends DurableObject {
       if (this.s) return json({ err: "exists" }, 409);
       let input;
       try { input = JSON.parse(await req.text()); } catch { return json({ err: "잘못된 요청이에요" }, 400); }
-      const r = createState(input, () => randId(12), Date.now());
+      const r = createState(input, () => randId(12), Date.now(), Math.random);
       if (r.err) return json({ err: r.err }, 400);
       this.s = r.s;
       await this.ctx.storage.put("s", this.s);
@@ -86,7 +97,8 @@ export class AuctionRoom extends DurableObject {
     const now = Date.now(), s = this.s;
     let r;
     if (msg.t === "bid" && role.cap >= 0) r = bid(s, role.cap, msg.amount, now);
-    else if (msg.t === "start" && role.host) r = start(s, now, Math.random);
+    else if (msg.t === "start" && role.host) r = start(s, now);
+    else if (msg.t === "end" && role.host) r = end(s, now);
     else if (msg.t === "pause" && role.host) r = pause(s, now);
     else if (msg.t === "resume" && role.host) r = resume(s, now);
     else r = { err: "권한이 없어요" };
@@ -96,7 +108,7 @@ export class AuctionRoom extends DurableObject {
 
   async alarm() {
     if (!this.s) return;
-    tick(this.s, Date.now(), Math.random);
+    tick(this.s, Date.now());
     await this.commit();
   }
 

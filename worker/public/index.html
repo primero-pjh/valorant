@@ -78,7 +78,7 @@ button:disabled{opacity:.45;cursor:not-allowed}
 <body>
 <div class="wrap" id="app">
   <h1>💰 발로란트 <span>경매 내전</span></h1>
-  <div class="sub"><a href="./">← 내전 메이커로</a></div>
+  <div class="sub"><a href="https://primero-pjh.github.io/valorant/">← 내전 메이커로</a></div>
   <div id="status" class="bar" hidden></div>
 
   <!-- 방 만들기 -->
@@ -105,16 +105,15 @@ button:disabled{opacity:.45;cursor:not-allowed}
         <label>팀당 뽑는 인원<input type="number" id="slots" value="5" min="1" max="10"></label>
         <label>최소 입찰가 (P)<input type="number" id="minBid" value="10" min="1"></label>
         <label>입찰 단위 (P)<input type="number" id="step" value="10" min="1"></label>
-        <label>첫 입찰 대기 (초)<input type="number" id="first" value="20" min="5" max="120"></label>
-        <label>입찰 후 남는 시간 (초)<input type="number" id="ext" value="8" min="0" max="60"></label>
+        <label>입찰 타이머 (초)<input type="number" id="first" value="20" min="5" max="120"></label>
       </div>
-      <div class="note" style="margin-top:8px">선수는 무작위 순서로 올라와요. 타이머가 끝나면 최고 입찰자가 낙찰되고, 입찰이 없으면 유찰돼요. 유찰된 선수는 마지막에 다시 올라오고, 그때도 입찰이 없으면 자리가 남은 팀에 0P로 무작위 배정돼요. 마감 직전에 입찰이 들어오면 남은 시간이 "입찰 후 남는 시간"만큼으로 늘어나요.</div>
+      <div class="note" style="margin-top:8px">경매 순서는 방을 만들 때 무작위로 정해지고, 모두에게 보여요. 입찰이 들어올 때마다 타이머가 처음부터 다시 시작되고, 타이머가 끝나면 최고 입찰자가 낙찰돼요. 입찰이 없으면 유찰되어 순서 맨 뒤로 가고, 낙찰될 때까지 계속 다시 올라와요. 모든 팀이 다 차거나, 자리가 남은 팀이 모두 최소 입찰가를 낼 수 없으면 경매가 끝나요.</div>
     </div>
 
     <div class="card">
       <h2>🙋 경매 선수 <span class="note" id="pcnt"></span></h2>
       <div class="row">
-        <button class="gold" id="loadIn">내전 메이커 참석자 불러오기</button>
+        <button class="gold" id="loadIn">내전 메이커 명단 불러오기</button>
         <button id="pClear">비우기</button>
       </div>
       <div class="row" style="margin-top:8px">
@@ -155,7 +154,7 @@ button:disabled{opacity:.45;cursor:not-allowed}
       </div>
       <div>
         <div class="card"><h2>🛡️ 팀 현황</h2><div class="teams" id="teams"></div></div>
-        <div class="card"><h2>⏳ 남은 선수 <span class="note" id="leftCnt"></span></h2><div class="pl" id="left" style="margin-top:0"></div></div>
+        <div class="card"><h2>🔢 경매 순서 <span class="note" id="leftCnt"></span></h2><div class="pl" id="left" style="margin-top:0"></div></div>
         <div class="card"><h2>📜 기록</h2><div class="log" id="log"></div></div>
       </div>
     </div>
@@ -164,10 +163,11 @@ button:disabled{opacity:.45;cursor:not-allowed}
 
 <script>
 (function(){
-// 배포된 Cloudflare Worker 주소. 로컬에서 열면 wrangler dev 서버를 쓴다.
-var PROD_API="https://valorant-auction.valorant-auction.workers.dev";
-var LOCAL=/^(localhost|127\.0\.0\.1)$/.test(location.hostname)||location.protocol==="file:";
-var API=LOCAL?"http://127.0.0.1:8787":PROD_API;
+// 이 페이지는 Worker가 직접 서빙하므로 API는 같은 주소. 파일로 열거나 다른 로컬 포트면 wrangler dev(8787)를 쓴다.
+var LOCAL=location.protocol==="file:"||(/^(localhost|127.0.0.1)$/.test(location.hostname)&&location.port!=="8787");
+var API=LOCAL?"http://127.0.0.1:8787":location.origin;
+// 내전 메이커(Apps Script) 명단. doGet에서 ?api=all 이면 getAll() 결과를 JSON으로 돌려준다
+var SCRIM_API="https://script.google.com/macros/s/AKfycbxpAvrbCNjVzrTMMS9RIz3HMFxNOTz4aQUu-r7N_CO-Osgr9L9K669G6kxv1pqi3ZJFxA/exec?api=all";
 var TIERS=[];["아이언","브론즈","실버","골드","플래티넘","다이아","초월자","불멸"].forEach(function(n){for(var i=1;i<=3;i++)TIERS.push(n+" "+i)});TIERS.push("레디언트");
 var AGI={};
 
@@ -195,8 +195,8 @@ function initSetup(){
   show("setup",true);
   var draft=lsGet("auc_draft",null)||{caps:[{name:"",points:1000},{name:"",points:1000}],players:[]};
   var caps=draft.caps,P=draft.players;
-  ["slots","minBid","step","first","ext"].forEach(function(id){if(draft[id])$(id).value=draft[id]});
-  function save(){var d={caps:caps,players:P};["slots","minBid","step","first","ext"].forEach(function(id){d[id]=$(id).value});lsSet("auc_draft",d)}
+  ["slots","minBid","step","first"].forEach(function(id){if(draft[id])$(id).value=draft[id]});
+  function save(){var d={caps:caps,players:P};["slots","minBid","step","first"].forEach(function(id){d[id]=$(id).value});lsSet("auc_draft",d)}
   function capNames(){return caps.map(function(c){return c.name.trim().toLowerCase()}).filter(Boolean)}
   function renderCaps(){
     $("caps").innerHTML=caps.map(function(c,i){return '<div class="caprow"><input type="text" maxlength="16" data-cn="'+i+'" placeholder="팀장 '+(i+1)+' 닉네임" value="'+esc(c.name)+'"><input type="number" class="num" min="1" data-cp="'+i+'" value="'+esc(c.points)+'"><button data-cx="'+i+'"'+(caps.length<=2?" disabled":"")+'>✕</button></div>'}).join("");
@@ -225,25 +225,36 @@ function initSetup(){
   $("pAddBtn").onclick=function(){addNames($("pAdd").value);$("pAdd").value="";save();renderP()};
   $("pAdd").onkeydown=function(e){if(e.key==="Enter")$("pAddBtn").onclick()};
   $("pClear").onclick=function(){if(P.length&&confirm("선수 목록을 비울까요?")){P.length=0;save();renderP()}};
-  ["slots","minBid","step","first","ext"].forEach(function(id){$(id).oninput=function(){save();renderP()}});
-  $("loadIn").onclick=function(){
-    // 내전 메이커(index.html)가 같은 브라우저에 저장한 기록을 읽는다
-    var d=lsGet("scrim_db_cache",null);
-    if(!d){$("createMsg").textContent="이 브라우저에 내전 메이커 기록이 없어요";return}
-    (function(){
-      var prof={};Object.keys(d.profiles||{}).forEach(function(k){var p=d.profiles[k];if(p&&p.n)prof[p.n.toLowerCase()]=p});
-      var have={},added=0;P.forEach(function(p){have[p.n.toLowerCase()]=1});
-      Object.keys(d.players||{}).forEach(function(k){var p=d.players[k];if(!p||p.s!=="in"||!p.n||have[p.n.toLowerCase()])return;
-        var pr=prof[p.n.toLowerCase()]||{};have[p.n.toLowerCase()]=1;added++;
-        P.push({n:p.n,tier:pr.r?TIERS[Math.min(TIERS.length,Math.max(1,Math.round(pr.r)))-1]:"",ag:pr.ag||[]})});
-      save();renderP();$("createMsg").textContent=added?"":"새로 불러올 참석자가 없어요 (내전 메이커에서 '참석'한 사람만 불러와요)";
-    })();
-  };
+  ["slots","minBid","step","first"].forEach(function(id){$(id).oninput=function(){save();renderP()}});
+  // 내전 메이커 기록(d)에서 '참석'한 사람을 선수 목록에 추가하고, 추가한 인원 수를 돌려준다
+  function importDb(d){
+    var prof={};Object.keys(d.profiles||{}).forEach(function(k){var p=d.profiles[k];if(p&&p.n)prof[p.n.toLowerCase()]=p});
+    var have={},added=0;P.forEach(function(p){have[p.n.toLowerCase()]=1});
+    Object.keys(d.players||{}).forEach(function(k){var p=d.players[k];if(!p||p.s!=="in"||!p.n||have[p.n.toLowerCase()])return;
+      var pr=prof[p.n.toLowerCase()]||{};have[p.n.toLowerCase()]=1;added++;
+      P.push({n:p.n,tier:pr.r?TIERS[Math.min(TIERS.length,Math.max(1,Math.round(pr.r)))-1]:"",ag:pr.ag||[]})});
+    save();renderP();return added;
+  }
+  // Apps Script 내전 메이커 명단을 받아온다. 실패하면 같은 브라우저의 index.html 기록을 쓴다
+  function loadRoster(quiet){
+    var msg=$("createMsg"),btn=$("loadIn");btn.disabled=true;if(!quiet)msg.textContent="명단 불러오는 중…";
+    fetch(SCRIM_API).then(function(r){return r.json()}).then(function(d){
+      if(!d||!d.players)throw 0;
+      var added=importDb(d);msg.textContent=added||quiet?"":"새로 불러올 참석자가 없어요 (내전 메이커에서 '참석'한 사람만 불러와요)";
+    }).catch(function(){
+      var d=lsGet("scrim_db_cache",null);
+      if(d&&importDb(d)){msg.textContent="";return}
+      if(!quiet)msg.textContent="내전 메이커 명단을 불러오지 못했어요";
+    }).then(function(){btn.disabled=false});
+  }
+  $("loadIn").onclick=function(){loadRoster(false)};
+  // 선수 목록이 비어 있으면 처음 열 때 명단을 기본으로 채운다
+  if(!P.length)loadRoster(true);
   $("create").onclick=function(){
     var btn=$("create"),cn=capNames();
     var body={caps:caps.map(function(c){return{name:c.name.trim(),points:Math.round(+c.points)}}),
       players:P.filter(function(p){return cn.indexOf(p.n.toLowerCase())<0}),
-      slots:+$("slots").value,minBid:+$("minBid").value,step:+$("step").value,first:+$("first").value,ext:+$("ext").value};
+      slots:+$("slots").value,minBid:+$("minBid").value,step:+$("step").value,first:+$("first").value};
     $("createMsg").textContent="";btn.disabled=true;
     fetch(API+"/rooms",{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify(body)}).then(function(r){return r.json()}).then(function(r){
       if(r.err){$("createMsg").textContent=r.err;return}
@@ -310,7 +321,7 @@ function initRoom(){
   }
   function roleBadge(){return S.role.host?"진행자":S.role.cap>=0?"팀장 "+capLabel(S.role.cap):"관전 중"}
   function renderStage(){
-    var h='<div class="rd"><span class="badge">'+esc(roleBadge())+'</span> &nbsp;'+(S.round===2?"유찰 선수 재경매":"본 경매")+'</div>';
+    var h='<div class="rd"><span class="badge">'+esc(roleBadge())+'</span> &nbsp;'+(S.status==="lobby"||S.status==="done"?"":"남은 순서 "+S.pool.length+"명")+'</div>';
     if(S.status==="lobby"){
       h+='<div class="who">대기 중</div><div class="meta">선수 '+S.pool.length+'명 · 팀장 '+S.caps.length+'명 · 팀당 '+S.cfg.slots+'명</div><div class="note" style="margin-top:10px">진행자가 시작하면 선수가 무작위로 한 명씩 올라와요.</div>';
     }else if(S.status==="done"){
@@ -319,15 +330,16 @@ function initRoom(){
       var L=S.last,lastAt=S.log.length?S.log[S.log.length-1].at:0,fresh=lastResAt!==lastAt;lastResAt=lastAt;
       var info=S.info[L.n]||{};
       h+='<div class="who">'+esc(L.n)+'</div><div class="meta">'+esc(info.tier||"")+agIcons(info.ag)+'</div>';
-      h+=L.type==="pass"?'<div class="res pass'+(fresh?' pop':'')+'">유찰 · 마지막에 다시 올라와요</div>'
+      h+=L.type==="pass"?'<div class="res pass'+(fresh?' pop':'')+'">유찰 · 순서 맨 뒤로 가요</div>'
         :'<div class="res sold'+(fresh?' pop':'')+'">'+(L.type==="auto"?"자동 배정 → ":"낙찰 → ")+esc(capLabel(L.by))+' ('+L.price+'P)</div>';
-      h+='<div class="note" style="margin-top:8px">'+(S.status==="paused"?"일시정지됨":"잠시 후 다음 선수")+'</div>';
+      h+='<div class="note" style="margin-top:8px">'+(S.status==="paused"?"일시정지됨":S.pool.length?"잠시 후 다음 선수: <b>"+esc(S.pool[0])+"</b>":"")+'</div>';
     }else if(S.cur){
       var c=S.cur,inf=S.info[c.n]||{};
-      h+='<div class="who">'+esc(c.n)+'</div><div class="meta">'+esc(inf.tier||"")+agIcons(inf.ag)+'</div>';
+      h+='<div class="who">'+esc(c.n)+'</div><div class="meta">'+esc(inf.tier||"")+agIcons(inf.ag)+(S.passes[c.n]?' · <span style="color:var(--gold)">유찰 '+S.passes[c.n]+'회</span>':'')+'</div>';
       h+='<div class="price">'+(c.by>=0?c.bid+'P<small>최고 입찰: '+esc(capLabel(c.by))+(c.by===me()?" (나)":"")+'</small>':'—<small>시작가 '+S.cfg.minBid+'P · 아직 입찰 없음</small>')+'</div>';
       h+='<div class="clock" id="clock"></div><div class="tbar"><i id="tbar"></i></div>';
       if(S.status==="paused")h+='<div class="note" style="margin-top:6px">⏸️ 진행자가 일시정지했어요</div>';
+      if(S.pool.length)h+='<div class="note" style="margin-top:6px">다음: '+S.pool.slice(0,3).map(esc).join(" → ")+(S.pool.length>3?" …":"")+'</div>';
     }
     $("stage").innerHTML=h;
     if($("copyRes"))$("copyRes").onclick=function(e){copy(resultText(),e.target)};
@@ -356,8 +368,9 @@ function initRoom(){
   function renderHost(){
     show("hostbox",S.role.host);if(!S.role.host)return;
     var b=S.status==="lobby"?'<button class="pri" data-h="start">▶️ 경매 시작</button>':S.status==="running"?'<button data-h="pause">⏸️ 일시정지</button>':S.status==="paused"?'<button class="pri" data-h="resume">▶️ 재개</button>':'<span class="note">경매가 끝났어요</span>';
+    if(S.status!=="done")b+='<button data-h="end">⏹️ 경매 종료</button>';
     $("hostBtns").innerHTML=b+'<span class="msg" id="hostMsg" style="margin:0"></span>';
-    $("hostBtns").onclick=function(e){var t=e.target.dataset.h;if(t)send({t:t})};
+    $("hostBtns").onclick=function(e){var t=e.target.dataset.h;if(!t)return;if(t==="end"&&!confirm("경매를 지금 끝낼까요? 남은 선수는 미배정으로 남아요."))return;send({t:t})};
     if(S.keys&&!$("hostLinks").childNodes.length)renderLinkRows($("hostLinks"),linkRows(ROOM,S.caps.map(function(c){return c.name}),S.keys,null));
   }
   function renderTeams(){
@@ -366,10 +379,11 @@ function initRoom(){
       return '<div class="team'+(i===me()?" me":"")+(S.status==="running"&&S.phase==="bid"&&i===top?" top":"")+'"><h3>'+esc(c.name)+'<span>'+c.points+'P</span></h3><div class="slots">'+c.team.length+'/'+S.cfg.slots+'명 · 사용 '+(c.start-c.points)+'P</div><ul>'+c.team.map(function(t){return '<li>'+esc(t.n)+' <small>'+t.price+'P</small></li>'}).join("")+'</ul></div>'}).join("");
   }
   function renderLeft(){
-    function chip(n,cls){var i=S.info[n]||{};return '<span class="chip '+(cls||"")+'">'+esc(n)+(i.tier?' <small>'+esc(i.tier)+'</small>':'')+'</span>'}
-    var list=S.pool.slice().sort().map(function(n){return chip(n)}).concat(S.passed.map(function(n){return chip(n,"pass")}));
+    function chip(n,no,now){var i=S.info[n]||{},p=S.passes[n];
+      return '<span class="chip'+(p?" pass":"")+'"'+(now?' style="outline:2px solid var(--ac)"':'')+'><small>'+(now?"지금":no)+'</small>'+esc(n)+(i.tier?' <small>'+esc(i.tier)+'</small>':'')+(p?' <small style="color:var(--gold)">유찰 '+p+'</small>':'')+'</span>'}
+    var list=(S.cur?[chip(S.cur.n,0,true)]:[]).concat(S.pool.map(function(n,i){return chip(n,i+1)}));
     $("left").innerHTML=list.join("")||'<span class="note">없음</span>';
-    $("leftCnt").textContent=S.pool.length+"명"+(S.passed.length?" · 유찰 "+S.passed.length+"명 (점선)":"");
+    $("leftCnt").textContent="남은 "+S.pool.length+"명 · 점선은 유찰된 선수";
   }
   function tickClock(){
     var el=$("clock");if(!el||!S||!S.cur)return;
