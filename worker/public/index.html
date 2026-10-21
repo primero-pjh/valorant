@@ -102,7 +102,7 @@ button:disabled{opacity:.45;cursor:not-allowed}
     <div class="card">
       <h2>⚙️ 규칙</h2>
       <div class="grid2">
-        <label>팀당 뽑는 인원<input type="number" id="slots" value="5" min="1" max="10"></label>
+        <label>팀당 인원 (팀장 포함)<input type="number" id="slots" value="5" min="2" max="11"></label>
         <label>최소 입찰가 (P)<input type="number" id="minBid" value="10" min="1"></label>
         <label>입찰 단위 (P)<input type="number" id="step" value="10" min="1"></label>
         <label>입찰 타이머 (초)<input type="number" id="first" value="20" min="5" max="120"></label>
@@ -207,7 +207,7 @@ function initSetup(){
     $("plist").innerHTML=P.map(function(p,i){var isCap=cn.indexOf(p.n.toLowerCase())>=0;
       return '<span class="chip"'+(isCap?' style="opacity:.4" title="팀장이라 경매에서 빠져요"':'')+'>'+esc(p.n)+(p.tier?' <small>'+esc(p.tier)+'</small>':'')+agIcons(p.ag)+'<button data-px="'+i+'">✕</button></span>'}).join("")||'<span class="note">아직 선수가 없어요</span>';
     var n=P.filter(function(p){return cn.indexOf(p.n.toLowerCase())<0}).length;
-    var need=caps.length*(+$("slots").value||0);
+    var need=caps.length*Math.max(0,(+$("slots").value||0)-1);
     $("pcnt").textContent=n+"명"+(need?" · 필요 "+need+"명":"");
   }
   function addNames(text){
@@ -255,7 +255,7 @@ function initSetup(){
     var btn=$("create"),cn=capNames();
     var body={caps:caps.map(function(c){return{name:c.name.trim(),points:Math.round(+c.points)}}),
       players:P.filter(function(p){return cn.indexOf(p.n.toLowerCase())<0}),
-      slots:+$("slots").value,minBid:+$("minBid").value,step:+$("step").value,first:+$("first").value};
+      slots:+$("slots").value-1,minBid:+$("minBid").value,step:+$("step").value,first:+$("first").value};
     $("createMsg").textContent="";btn.disabled=true;
     fetch(API+"/rooms",{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify(body)}).then(function(r){return r.json()}).then(function(r){
       if(r.err){$("createMsg").textContent=r.err;return}
@@ -324,7 +324,7 @@ function initRoom(){
   function renderStage(){
     var h='<div class="rd"><span class="badge">'+esc(roleBadge())+'</span> &nbsp;'+(S.status==="lobby"||S.status==="done"?"":"남은 순서 "+S.pool.length+"명")+'</div>';
     if(S.status==="lobby"){
-      h+='<div class="who">대기 중</div><div class="meta">선수 '+S.pool.length+'명 · 팀장 '+S.caps.length+'명 · 팀당 '+S.cfg.slots+'명</div><div class="note" style="margin-top:10px">진행자가 시작하면 선수가 무작위로 한 명씩 올라와요.</div>';
+      h+='<div class="who">대기 중</div><div class="meta">선수 '+S.pool.length+'명 · 팀장 '+S.caps.length+'명 · 팀당 '+(S.cfg.slots+1)+'명 (팀장 포함)</div><div class="note" style="margin-top:10px">진행자가 시작하면 선수가 무작위로 한 명씩 올라와요.</div>';
     }else if(S.status==="done"){
       h+='<div class="who">🏁 경매 종료</div><div class="meta">'+(S.unsold.length?"남은 선수: "+esc(S.unsold.join(", ")):"모든 선수가 팀을 찾았어요")+'</div><div class="row" style="justify-content:center;margin-top:12px"><button class="gold" id="copyRes">📋 결과 복사 (단톡방 공유용)</button></div>';
     }else if(S.phase==="gap"&&S.last){
@@ -355,7 +355,7 @@ function initRoom(){
     var c=S.caps[ci],full=c.team.length>=S.cfg.slots,open=S.status==="running"&&S.phase==="bid"&&S.cur;
     var mn=minNext(),why=full?"팀이 다 찼어요":!open?"입찰 시간이 아니에요":S.cur.by===ci?"내가 최고 입찰자예요":mn>c.points?"포인트가 부족해요":"";
     var amts=open?[mn,mn+S.cfg.step*4,mn+S.cfg.step*9]:[];
-    var h='<h2>🔨 내 입찰 <span class="note">남은 '+c.points+'P · '+c.team.length+'/'+S.cfg.slots+'명</span></h2>';
+    var h='<h2>🔨 내 입찰 <span class="note">남은 '+c.points+'P · '+(c.team.length+1)+'/'+(S.cfg.slots+1)+'명</span></h2>';
     h+='<div class="big">'+(open?amts.map(function(a){return '<button class="'+(a===mn?"pri":"gold")+'" data-bid="'+a+'"'+(why||a>c.points?" disabled":"")+'>'+a+'P</button>'}).join(""):'<button disabled>—</button><button disabled>—</button><button disabled>—</button>')+'</div>';
     h+='<div class="row" style="margin-top:8px"><input type="number" id="bidIn" placeholder="직접 입력 (P)" min="1"'+(why?" disabled":"")+'><button class="pri" id="bidGo"'+(why?" disabled":"")+'>입찰</button></div>';
     h+='<div class="msg" id="bidMsg">'+esc(why&&open?why:"")+'</div>';
@@ -377,7 +377,7 @@ function initRoom(){
   function renderTeams(){
     var top=S.cur&&S.cur.by;
     $("teams").innerHTML=S.caps.map(function(c,i){
-      return '<div class="team'+(i===me()?" me":"")+(S.status==="running"&&S.phase==="bid"&&i===top?" top":"")+'"><h3>'+esc(c.name)+'<span>'+c.points+'P</span></h3><div class="slots">'+c.team.length+'/'+S.cfg.slots+'명 · 사용 '+(c.start-c.points)+'P</div><ul>'+c.team.map(function(t){return '<li>'+esc(t.n)+' <small>'+t.price+'P</small></li>'}).join("")+'</ul></div>'}).join("");
+      return '<div class="team'+(i===me()?" me":"")+(S.status==="running"&&S.phase==="bid"&&i===top?" top":"")+'"><h3>'+esc(c.name)+'<span>'+c.points+'P</span></h3><div class="slots">'+(c.team.length+1)+'/'+(S.cfg.slots+1)+'명 · 사용 '+(c.start-c.points)+'P</div><ul>'+c.team.map(function(t){return '<li>'+esc(t.n)+' <small>'+t.price+'P</small></li>'}).join("")+'</ul></div>'}).join("");
   }
   function renderLeft(){
     function chip(n,no,now){var i=S.info[n]||{},p=S.passes[n];

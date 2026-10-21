@@ -29,7 +29,7 @@ export function createState(input, keygen, now, rand) {
     slots: int(input.slots), minBid: int(input.minBid), step: int(input.step),
     first: int(input.first),
   };
-  if (!inRange(cfg.slots, 1, 10)) return { err: "팀당 인원은 1~10명이어야 해요" };
+  if (!inRange(cfg.slots, 1, 10)) return { err: "팀당 인원은 팀장 포함 2~11명이어야 해요" };
   if (!inRange(cfg.minBid, 1, 1000000)) return { err: "최소 입찰가를 확인해 주세요" };
   if (!inRange(cfg.step, 1, 1000000)) return { err: "입찰 단위를 확인해 주세요" };
   if (!inRange(cfg.first, 5, 120)) return { err: "입찰 타이머는 5~120초예요" };
