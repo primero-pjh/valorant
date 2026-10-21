@@ -1,11 +1,6 @@
 {
   "players": {},
   "config": {},
-  "profiles": {
-    "ntest": {
-      "n": "테스트유저",
-      "r": 12
-    }
-  },
+  "profiles": {},
   "matches": {}
 }
