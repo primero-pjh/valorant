@@ -139,6 +139,7 @@ button:disabled{opacity:.45;cursor:not-allowed}
     <div class="row"><button class="pri" id="create" style="flex:1;padding:14px">🔨 경매방 만들기</button></div>
     <div class="msg" id="createMsg"></div>
 
+    <!-- 사다리타기: 잠시 숨김
     <div class="card" style="margin-top:14px">
       <h2>🪜 사다리타기 팀 나누기</h2>
       <div class="note">경매 대신 위의 선수 전원이 동시에 사다리를 타서 팀장 수만큼 팀을 나눠요. 누를 때마다 사다리가 새로 만들어져요.</div>
@@ -147,6 +148,7 @@ button:disabled{opacity:.45;cursor:not-allowed}
       <div class="ladwrap"><svg id="ladSvg" hidden></svg></div>
       <div class="teams" id="ladRes" style="margin-top:10px"></div>
     </div>
+    -->
   </div>
 
   <!-- 방 만든 직후: 링크 나눠주기 -->
@@ -277,6 +279,7 @@ function initSetup(){
   if(!P.length)loadRoster(true);
   loadAgents(renderP);
 
+  /* 사다리타기: 잠시 숨김
   // 사다리타기: 선수 전원이 동시에 타고, 바닥 칸은 팀장 수만큼 팀을 고르게 반복해 놓는다
   var LCOL=["#ff4655","#4ade80","#e8b94a","#60a5fa","#c38bff","#f472b6","#2dd4bf","#fb923c","#a3e635","#cbd5e1"];
   function ladderTeams(){return caps.map(function(c,i){return {name:c.name.trim()||"팀 "+(i+1),col:LCOL[i%LCOL.length],mem:[]}})}
@@ -322,6 +325,7 @@ function initSetup(){
       $("ladCopy").onclick=function(e){copy(ladderText(teams),e.target)};
     },3300);
   };
+  */
   $("create").onclick=function(){
     var btn=$("create"),cn=capNames();
     var body={caps:caps.map(function(c){return{name:c.name.trim(),points:Math.round(+c.points)}}),
