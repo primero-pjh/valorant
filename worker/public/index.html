@@ -131,7 +131,7 @@ button:disabled{opacity:.45;cursor:not-allowed}
   <div id="links" hidden>
     <div class="card">
       <h2>🔗 링크 나눠주기</h2>
-      <div class="note">팀장 링크는 팀장 본인에게만 따로 보내 주세요. 그 링크로 들어온 사람이 그 팀장으로 입찰해요.</div>
+      <div class="note">팀장 링크는 팀장 본인에게만, 진행자 링크는 진행할 사람에게만 보내 주세요. 그 링크로 들어온 사람이 그 팀장으로 입찰해요.</div>
       <div id="linkList" style="margin-top:8px"></div>
       <div class="row" style="margin-top:10px">
         <button class="gold" id="copyAll">📋 전체 복사</button>
@@ -287,7 +287,7 @@ function showLinks(rec){
   show("links",true);
   var rows=linkRows(rec.room,rec.caps,rec.keys,rec.hostKey);
   renderLinkRows($("linkList"),rows);
-  $("copyAll").onclick=function(e){copy(rows.filter(function(r){return r.label.indexOf("진행자")<0}).map(function(r){return r.label+"\n"+r.url}).join("\n\n"),e.target)};
+  $("copyAll").onclick=function(e){copy(rows.map(function(r){return r.label+"\n"+r.url}).join("\n\n"),e.target)};
   $("goHost").href=linkFor(rec.room,rec.hostKey);
 }
 
