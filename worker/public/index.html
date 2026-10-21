@@ -31,6 +31,7 @@ button:disabled{opacity:.45;cursor:not-allowed}
 .chip{display:inline-flex;align-items:center;gap:6px;padding:5px 10px;border-radius:999px;background:var(--chip);font-size:14px}
 .chip small{color:var(--mut);font-size:11px}
 .chip img{width:18px;height:18px;border-radius:50%;vertical-align:middle}
+.chip img.ti{border-radius:0;margin-right:-2px}
 .chip button{padding:0 4px;border:0;background:none;color:var(--mut);font-size:14px}
 .chip.pass{border:1px dashed var(--gold)}
 .caprow{display:flex;gap:8px;margin-bottom:6px}
@@ -214,6 +215,7 @@ function copy(text,btn){
 }
 function base(){return location.origin+location.pathname}
 function linkFor(room,key){return base()+"?r="+room+(key?"&k="+key:"")}
+function tierImg(t){var i=TIERS.indexOf(t||"");return i<0?"":'<img class="ti" src="https://media.valorant-api.com/competitivetiers/03621f52-342b-cf4e-4f86-9350a49c6d04/'+(i+3)+'/smallicon.png" alt="">'}
 function agIcons(ag){return (ag||[]).map(function(a){return AGI[a]?'<img src="'+esc(AGI[a])+'" title="'+esc(a)+'" alt="'+esc(a)+'">':'<small>'+esc(a)+'</small>'}).join("")}
 // 요원 아이콘: 내전 메이커에는 한글/영어 이름이 섞여 있어서 둘 다 등록한다
 function loadAgents(cb){try{Promise.all(["en-US","ko-KR"].map(function(l){return fetch("https://valorant-api.com/v1/agents?isPlayableCharacter=true&language="+l).then(function(r){return r.json()})})).then(function(js){js.forEach(function(j){(j.data||[]).forEach(function(a){AGI[a.displayName]=a.displayIcon})});cb()}).catch(function(){})}catch(e){}}
@@ -235,7 +237,7 @@ function initSetup(){
   function renderP(){
     var cn=capNames();
     $("plist").innerHTML=P.map(function(p,i){var isCap=cn.indexOf(p.n.toLowerCase())>=0;
-      return '<span class="chip"'+(isCap?' style="opacity:.4" title="팀장이라 경매에서 빠져요"':'')+'>'+esc(p.n)+(p.tier?' <small>'+esc(p.tier)+'</small>':'')+agIcons(p.ag)+'<button data-px="'+i+'">✕</button></span>'}).join("")||'<span class="note">아직 선수가 없어요</span>';
+      return '<span class="chip"'+(isCap?' style="opacity:.4" title="팀장이라 경매에서 빠져요"':'')+'>'+esc(p.n)+(p.tier?' '+tierImg(p.tier)+'<small>'+esc(p.tier)+'</small>':'')+agIcons(p.ag)+'<button data-px="'+i+'">✕</button></span>'}).join("")||'<span class="note">아직 선수가 없어요</span>';
     var n=P.filter(function(p){return cn.indexOf(p.n.toLowerCase())<0}).length;
     var need=caps.length*Math.max(0,(+$("slots").value||0)-1);
     $("pcnt").textContent=n+"명"+(need?" · 필요 "+need+"명":"");
