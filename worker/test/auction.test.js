@@ -1,6 +1,6 @@
 import test from "node:test";
 import assert from "node:assert/strict";
-import { createState, start, end, bid, tick, pause, resume, view, roleFor, GAP_MS } from "../src/auction.js";
+import { createState, start, end, undo, bid, tick, pause, resume, view, roleFor, GAP_MS } from "../src/auction.js";
 
 let k = 0;
 const keygen = () => "key" + (k++);
@@ -149,4 +149,49 @@ test("결과 표시 시간이 지나면 다음 선수가 나온다", () => {
   assert.equal(s.wake, t + GAP_MS);
   advance(s);
   assert.equal(s.cur.n, "p2");
+});
+
+test("되돌리기: 낙찰을 취소하면 포인트가 돌아오고 그 선수 경매가 일시정지 상태로 다시 시작된다", () => {
+  const s = make();
+  start(s, 0);
+  bid(s, 0, 30, 1);
+  advance(s); // p1 → A 낙찰
+  assert.equal(s.caps[0].points, 70);
+  advance(s); // 다음 선수 p2
+  assert.equal(s.cur.n, "p2");
+  assert.ok(undo(s, 100).ok);
+  assert.equal(s.caps[0].points, 100);
+  assert.deepEqual(s.caps[0].team, []);
+  assert.equal(s.status, "paused");
+  assert.equal(s.phase, "bid");
+  assert.deepEqual(s.cur, { n: "p1", bid: 0, by: -1 });
+  assert.deepEqual(s.pool, ["p2", "p3", "p4"]);
+  resume(s, 200);
+  assert.equal(s.wake, 200 + 20000);
+});
+
+test("되돌리기: 유찰과 진행자 종료도 되돌리고, 되돌릴 게 없으면 거절한다", () => {
+  const s = make();
+  assert.match(undo(s, 0).err, /되돌릴/);
+  start(s, 0);
+  advance(s); // p1 유찰
+  assert.equal(s.passes.p1, 1);
+  undo(s, 1);
+  assert.equal(s.passes.p1, undefined);
+  assert.deepEqual(s.pool, ["p2", "p3", "p4"]);
+  end(s, 2);
+  assert.equal(s.status, "done");
+  undo(s, 3);
+  assert.equal(s.status, "paused");
+  assert.equal(s.cur.n, "p1");
+  assert.deepEqual(s.unsold, []);
+  assert.match(undo(s, 4).err, /되돌릴/);
+});
+
+test("되돌리기 기록은 화면 데이터에 보내지 않는다", () => {
+  const s = make();
+  start(s, 0);
+  advance(s);
+  assert.ok(s.hist.length);
+  assert.equal(view(s, { host: true, cap: -1 }, 0).hist, undefined);
 });

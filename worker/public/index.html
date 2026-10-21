@@ -85,6 +85,9 @@ button:disabled{opacity:.45;cursor:not-allowed}
 .team ul{margin:6px 0 0;padding-left:18px;font-size:13px}
 .team li small{color:var(--mut)}
 .team .slots{font-size:11px;color:var(--mut)}
+.team .pw{margin-top:6px;font-size:12px}
+.team .pw small{color:var(--mut)}
+.team .pw .tbar{height:4px;margin-top:3px}
 .log{font-size:12px;color:var(--mut);max-height:220px;overflow:auto}
 .log div{padding:2px 0;border-bottom:1px solid #ffffff08}
 </style>
@@ -177,7 +180,7 @@ button:disabled{opacity:.45;cursor:not-allowed}
         </div>
       </div>
       <div>
-        <div class="card"><h2>🛡️ 팀 현황</h2><div class="teams" id="teams"></div></div>
+        <div class="card"><h2>🛡️ 팀 현황 <span class="note" id="balance"></span></h2><div class="teams" id="teams"></div></div>
         <div class="card"><h2>🔢 경매 순서 <span class="note" id="leftCnt"></span></h2><div class="pl" id="left" style="margin-top:0"></div></div>
         <div class="card"><h2>📜 기록</h2><div class="log" id="log"></div></div>
       </div>
@@ -328,7 +331,8 @@ function initSetup(){
   */
   $("create").onclick=function(){
     var btn=$("create"),cn=capNames();
-    var body={caps:caps.map(function(c){return{name:c.name.trim(),points:Math.round(+c.points)}}),
+    var tierOf={};P.forEach(function(p){tierOf[p.n.toLowerCase()]=p.tier||""});
+    var body={caps:caps.map(function(c){return{name:c.name.trim(),points:Math.round(+c.points),tier:tierOf[c.name.trim().toLowerCase()]||""}}),
       players:P.filter(function(p){return cn.indexOf(p.n.toLowerCase())<0}),
       slots:+$("slots").value-1,minBid:+$("minBid").value,step:+$("step").value,first:+$("first").value};
     $("createMsg").textContent="";btn.disabled=true;
@@ -445,14 +449,32 @@ function initRoom(){
     show("hostbox",S.role.host);if(!S.role.host)return;
     var b=S.status==="lobby"?'<button class="pri" data-h="start">▶️ 경매 시작</button>':S.status==="running"?'<button data-h="pause">⏸️ 일시정지</button>':S.status==="paused"?'<button class="pri" data-h="resume">▶️ 재개</button>':'<span class="note">경매가 끝났어요</span>';
     if(S.status!=="done")b+='<button data-h="end">⏹️ 경매 종료</button>';
+    if(S.status!=="lobby")b+='<button data-h="undo"'+(S.canUndo?'':' disabled')+' title="직전 낙찰/유찰/종료를 취소하고 그 선수를 다시 경매해요">↩️ 되돌리기</button>';
     $("hostBtns").innerHTML=b+'<span class="msg" id="hostMsg" style="margin:0"></span>';
-    $("hostBtns").onclick=function(e){var t=e.target.dataset.h;if(!t)return;if(t==="end"&&!confirm("경매를 지금 끝낼까요? 남은 선수는 미배정으로 남아요."))return;send({t:t})};
+    $("hostBtns").onclick=function(e){var t=e.target.dataset.h;if(!t)return;if(t==="end"&&!confirm("경매를 지금 끝낼까요? 남은 선수는 미배정으로 남아요."))return;
+      if(t==="undo"&&!confirm(undoText()))return;send({t:t})};
     if(S.keys&&!$("hostLinks").childNodes.length)renderLinkRows($("hostLinks"),linkRows(ROOM,S.caps.map(function(c){return c.name}),S.keys,null));
   }
+  function undoText(){
+    var lg=S.log.length?S.log[S.log.length-1].msg:"",L=S.last;
+    var what=S.status==="done"&&lg.indexOf("진행자 종료")>=0?"경매 종료":L?(L.type==="pass"?L.n+" 유찰":L.n+" → "+capLabel(L.by)+" "+L.price+"P"):"직전 결과";
+    return "직전 결과("+what+")를 되돌릴까요?\n그 선수의 경매가 입찰 없이 다시 시작되고, 일시정지 상태가 돼요.";
+  }
+  // 팀 전력: 팀장 + 낙찰 선수의 티어를 점수(아이언 1 = 1 … 레디언트 = 25)로 바꿔 평균을 낸다. 티어 모르는 사람은 빼고 센다
+  function tierScore(t){var i=TIERS.indexOf(t||"");return i<0?0:i+1}
+  function teamPower(c){
+    var sc=[tierScore(c.tier)].concat(c.team.map(function(t){return tierScore((S.info[t.n]||{}).tier)})),known=sc.filter(Boolean);
+    var sum=known.reduce(function(a,b){return a+b},0);
+    return {avg:known.length?sum/known.length:0,sum:sum,unknown:sc.length-known.length};
+  }
   function renderTeams(){
-    var top=S.cur&&S.cur.by;
-    $("teams").innerHTML=S.caps.map(function(c,i){
-      return '<div class="team'+(i===me()?" me":"")+(S.status==="running"&&S.phase==="bid"&&i===top?" top":"")+'"><h3>'+esc(c.name)+'<span>'+c.points+'P</span></h3><div class="slots">'+(c.team.length+1)+'/'+(S.cfg.slots+1)+'명 · 사용 '+(c.start-c.points)+'P</div><ul>'+c.team.map(function(t){return '<li>'+esc(t.n)+' <small>'+t.price+'P</small></li>'}).join("")+'</ul></div>'}).join("");
+    var top=S.cur&&S.cur.by,pw=S.caps.map(teamPower),avgs=pw.map(function(p){return p.avg}).filter(Boolean);
+    var gap=avgs.length>1?Math.max.apply(null,avgs)-Math.min.apply(null,avgs):null;
+    $("balance").innerHTML=gap==null?"":'평균 차이 <b style="color:'+(gap<=1?"var(--ok)":gap<=3?"var(--gold)":"var(--bad)")+'">'+gap.toFixed(1)+'단계</b>';
+    $("teams").innerHTML=S.caps.map(function(c,i){var p=pw[i];
+      return '<div class="team'+(i===me()?" me":"")+(S.status==="running"&&S.phase==="bid"&&i===top?" top":"")+'"><h3>'+esc(c.name)+'<span>'+c.points+'P</span></h3><div class="slots">'+(c.team.length+1)+'/'+(S.cfg.slots+1)+'명 · 사용 '+(c.start-c.points)+'P</div>'
+        +'<div class="pw"><div class="pwl">⚖️ '+(p.avg?'평균 <b>'+esc(TIERS[Math.round(p.avg)-1])+'</b> <small>('+p.avg.toFixed(1)+' · 합 '+p.sum+')</small>':'<small>티어 정보 없음</small>')+(p.unknown?' <small>미정 '+p.unknown+'명 제외</small>':'')+'</div><div class="tbar"><i style="width:'+(p.avg/25*100).toFixed(1)+'%"></i></div></div>'
+        +'<ul>'+(c.tier?'<li>👑 '+esc(c.name)+' <small>'+esc(c.tier)+'</small></li>':'')+c.team.map(function(t){var tr=(S.info[t.n]||{}).tier;return '<li>'+esc(t.n)+(tr?' <small>'+esc(tr)+'</small>':'')+' <small>'+t.price+'P</small></li>'}).join("")+'</ul></div>'}).join("");
   }
   function renderLeft(){
     function chip(n,no,now){var i=S.info[n]||{},p=S.passes[n];

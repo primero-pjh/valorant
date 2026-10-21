@@ -1,5 +1,5 @@
 import { DurableObject } from "cloudflare:workers";
-import { createState, start, end, pause, resume, bid, tick, view, roleFor } from "./auction.js";
+import { createState, start, end, undo, pause, resume, bid, tick, view, roleFor } from "./auction.js";
 
 const CORS = {
   "Access-Control-Allow-Origin": "*",
@@ -99,6 +99,7 @@ export class AuctionRoom extends DurableObject {
     if (msg.t === "bid" && role.cap >= 0) r = bid(s, role.cap, msg.amount, now);
     else if (msg.t === "start" && role.host) r = start(s, now);
     else if (msg.t === "end" && role.host) r = end(s, now);
+    else if (msg.t === "undo" && role.host) r = undo(s, now);
     else if (msg.t === "pause" && role.host) r = pause(s, now);
     else if (msg.t === "resume" && role.host) r = resume(s, now);
     else r = { err: "권한이 없어요" };

@@ -5,12 +5,13 @@
 
 export const GAP_MS = 3000;
 const LOG_MAX = 60;
+const HIST_MAX = 10;
 
 function int(v) { return typeof v === "number" && Number.isInteger(v) ? v : NaN; }
 function name(v) { return typeof v === "string" ? v.trim().slice(0, 16) : ""; }
 function inRange(v, lo, hi) { return Number.isInteger(v) && v >= lo && v <= hi; }
 
-// input: { caps:[{name,points}], players:[{n,tier?,ag?}], slots, minBid, step, first }
+// input: { caps:[{name,points,tier?}], players:[{n,tier?,ag?}], slots, minBid, step, first }
 export function createState(input, keygen, now, rand) {
   if (!input || typeof input !== "object") return { err: "잘못된 요청이에요" };
   const caps = Array.isArray(input.caps) ? input.caps : [];
@@ -23,7 +24,7 @@ export function createState(input, keygen, now, rand) {
     if (seen.has(n.toLowerCase())) return { err: "팀장 이름이 겹쳐요: " + n };
     if (!inRange(p, 1, 1000000)) return { err: n + " 팀장의 포인트를 확인해 주세요" };
     seen.add(n.toLowerCase());
-    outCaps.push({ name: n, points: p, start: p, team: [] });
+    outCaps.push({ name: n, points: p, start: p, team: [], tier: typeof c.tier === "string" ? c.tier.slice(0, 12) : "" });
   }
   const cfg = {
     slots: int(input.slots), minBid: int(input.minBid), step: int(input.step),
@@ -57,7 +58,7 @@ export function createState(input, keygen, now, rand) {
     s: {
       v: 2, created: now, status: "lobby", phase: null, cfg,
       caps: outCaps, info, pool, passes: {}, unsold: [],
-      cur: null, last: null, wake: null, left: null, log: [],
+      cur: null, last: null, wake: null, left: null, log: [], hist: [],
       hostKey: keygen(), keys: outCaps.map(() => keygen()),
     },
   };
@@ -66,6 +67,13 @@ export function createState(input, keygen, now, rand) {
 function log(s, now, msg) {
   s.log.push({ at: now, msg });
   if (s.log.length > LOG_MAX) s.log.splice(0, s.log.length - LOG_MAX);
+}
+
+// 되돌리기용: 결과가 바뀌기 직전 상태를 쌓아 둔다
+function snap(s) {
+  s.hist = s.hist || [];
+  s.hist.push(JSON.parse(JSON.stringify({ caps: s.caps, pool: s.pool, passes: s.passes, unsold: s.unsold, cur: s.cur, last: s.last })));
+  if (s.hist.length > HIST_MAX) s.hist.shift();
 }
 
 function open(s) { return s.caps.map((c, i) => i).filter(i => s.caps[i].team.length < s.cfg.slots); }
@@ -87,6 +95,7 @@ function next(s, now) {
 }
 
 function resolve(s, now) {
+  snap(s);
   const c = s.cur;
   if (c.by >= 0) {
     const cap = s.caps[c.by];
@@ -127,7 +136,20 @@ export function start(s, now) {
 
 export function end(s, now) {
   if (s.status === "done") return { err: "이미 끝났어요" };
+  if (s.status !== "lobby") snap(s);
   finish(s, now, "진행자 종료");
+  return { ok: true };
+}
+
+// 직전 낙찰/유찰/종료를 취소한다. 그 선수는 입찰 없이 다시 올라오고, 진행자가 재개할 때까지 멈춰 있다.
+export function undo(s, now) {
+  const h = s.hist && s.hist.pop();
+  if (!h) return { err: "되돌릴 결과가 없어요" };
+  Object.assign(s, { caps: h.caps, pool: h.pool, passes: h.passes, unsold: h.unsold, last: h.last });
+  s.status = "paused"; s.wake = null;
+  if (h.cur) { s.cur = { n: h.cur.n, bid: 0, by: -1 }; s.phase = "bid"; s.left = s.cfg.first * 1000; }
+  else { s.cur = null; s.phase = "gap"; s.left = 0; }
+  log(s, now, "되돌리기" + (h.cur ? ": " + h.cur.n + " 다시 경매" : "") + " (일시정지)");
   return { ok: true };
 }
 
@@ -167,9 +189,9 @@ export function bid(s, ci, amount, now) {
 
 // 접속자에게 보낼 화면 데이터. 키는 진행자에게만 보낸다.
 export function view(s, role, now) {
-  const { hostKey, keys, ...pub } = s;
+  const { hostKey, keys, hist, ...pub } = s;
   const out = { passes: {}, ...pub, now, role };
-  if (role.host) out.keys = keys;
+  if (role.host) { out.keys = keys; out.canUndo = !!(hist && hist.length); }
   return out;
 }
 
