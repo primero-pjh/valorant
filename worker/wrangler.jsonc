@@ -1,0 +1,10 @@
+{
+  "name": "valorant-auction",
+  "main": "src/index.js",
+  "compatibility_date": "2026-06-01",
+  "durable_objects": {
+    "bindings": [{ "name": "ROOM", "class_name": "AuctionRoom" }]
+  },
+  // 무료 플랜은 SQLite 기반 Durable Object만 쓸 수 있다
+  "migrations": [{ "tag": "v1", "new_sqlite_classes": ["AuctionRoom"] }]
+}

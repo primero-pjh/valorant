@@ -1,0 +1,386 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>발로란트 경매 내전</title>
+<style>
+:root{color-scheme:dark;--bg:#0b0c10;--card:#15171d;--tx:#f3ead8;--mut:#a09a8c;--bd:#2d2a25;--ac:#ff4655;--gold:#e8b94a;--ok:#4ade80;--bad:#ff6b6b;--chip:#22252d;
+box-sizing:border-box;padding-top:env(safe-area-inset-top,0px);padding-bottom:env(safe-area-inset-bottom,0px)}
+*{box-sizing:border-box}
+body{margin:0;background:radial-gradient(900px 400px at 100% -10%,#ff465530,transparent),radial-gradient(700px 350px at -10% 0,#e8b94a22,transparent),var(--bg);background-attachment:fixed;color:var(--tx);font-family:system-ui,-apple-system,"Apple SD Gothic Neo","Noto Sans KR",sans-serif;line-height:1.5}
+a{color:var(--gold)}
+.wrap{max-width:760px;margin:0 auto;padding:16px 14px 60px}
+.wrap.wide{max-width:1040px}
+h1{font-size:22px;margin:4px 0 2px;letter-spacing:.5px}h1 span{color:var(--gold)}
+.sub{color:var(--mut);font-size:12px;margin-bottom:14px}
+.card{background:var(--card);border:1px solid var(--bd);border-left:4px solid var(--ac);border-top:1px solid #e8b94a55;border-radius:4px;padding:14px;margin-bottom:14px;clip-path:polygon(0 0,calc(100% - 14px) 0,100% 14px,100% 100%,0 100%)}
+.card h2{font-size:16px;margin:0 0 10px;display:flex;align-items:center;gap:8px}
+.row{display:flex;gap:8px;flex-wrap:wrap;align-items:center}
+input[type=text],input[type=number]{flex:1;min-width:0;padding:10px;border-radius:10px;border:1px solid var(--bd);background:var(--bg);color:var(--tx);font-size:15px}
+input.num{flex:0 0 110px}
+button{padding:10px 14px;border-radius:3px;border:1px solid var(--bd);background:var(--chip);color:var(--tx);font-size:14px;font-weight:600;cursor:pointer}
+button.pri{background:linear-gradient(135deg,#ff4655,#c4222f);border-color:var(--gold);color:#fff;letter-spacing:.5px}
+button.gold{background:linear-gradient(135deg,#f5d36b,#c9962b);border-color:#f5d36b;color:#1a1306}
+button.sm{padding:4px 10px;font-size:12px}
+button:disabled{opacity:.45;cursor:not-allowed}
+.note{font-size:12px;color:var(--mut)}
+.bar{padding:8px 12px;border-radius:10px;font-size:13px;margin-bottom:12px;background:var(--chip)}
+.bar.bad{background:#dc262622;color:var(--bad)}
+.pl{display:flex;flex-wrap:wrap;gap:6px;margin-top:10px}
+.chip{display:inline-flex;align-items:center;gap:6px;padding:5px 10px;border-radius:999px;background:var(--chip);font-size:14px}
+.chip small{color:var(--mut);font-size:11px}
+.chip button{padding:0 4px;border:0;background:none;color:var(--mut);font-size:14px}
+.chip.pass{border:1px dashed var(--gold)}
+.caprow{display:flex;gap:8px;margin-bottom:6px}
+.grid2{display:grid;grid-template-columns:repeat(auto-fit,minmax(150px,1fr));gap:8px}
+.grid2 label{font-size:12px;color:var(--mut);display:flex;flex-direction:column;gap:4px}
+.grid2 input{flex:none;width:100%}
+.lk{display:flex;gap:8px;align-items:center;padding:8px 0;border-bottom:1px solid var(--bd);font-size:13px}
+.lk:last-child{border:0}
+.lk b{min-width:84px}
+.lk code{flex:1;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;color:var(--mut);font-size:12px}
+.badge{display:inline-block;padding:2px 8px;border-radius:999px;font-size:12px;background:var(--chip);color:var(--gold);font-weight:700}
+.room{display:grid;gap:14px;grid-template-columns:1fr}
+@media(min-width:880px){.room{grid-template-columns:minmax(0,1.15fr) minmax(0,1fr)}}
+.room>div>.card:last-child{margin-bottom:0}
+.stage{text-align:center;padding:22px 14px}
+.stage .rd{font-size:12px;color:var(--mut);letter-spacing:1px}
+.stage .who{font-size:clamp(30px,8vw,46px);font-weight:800;margin:6px 0 2px;word-break:keep-all;line-height:1.2}
+.stage .meta{font-size:13px;color:var(--mut);min-height:20px}
+.stage .meta img{width:22px;height:22px;border-radius:50%;vertical-align:middle;margin-left:3px}
+.price{font-size:30px;font-weight:800;color:var(--gold);margin-top:12px}
+.price small{display:block;font-size:13px;color:var(--tx);font-weight:600}
+.clock{font-size:40px;font-weight:800;font-variant-numeric:tabular-nums;margin-top:6px}
+.clock.hot{color:var(--ac)}
+.tbar{height:6px;background:var(--chip);border-radius:999px;overflow:hidden;margin-top:6px}
+.tbar i{display:block;height:100%;background:linear-gradient(90deg,var(--ac),var(--gold));width:0}
+.res{font-size:22px;font-weight:800;margin-top:10px}
+.res.sold{color:var(--ok)}.res.pass{color:var(--gold)}
+@keyframes pop{from{transform:scale(.6);opacity:0}to{transform:scale(1);opacity:1}}
+.pop{animation:pop .35s both}
+.bidbox .big{display:grid;grid-template-columns:repeat(3,1fr);gap:8px;margin-top:8px}
+.bidbox .big button{padding:14px 6px;font-size:16px}
+.msg{min-height:18px;font-size:13px;color:var(--bad);margin-top:6px}
+.teams{display:grid;grid-template-columns:repeat(auto-fit,minmax(160px,1fr));gap:10px}
+.team{border:1px solid var(--bd);border-radius:12px;padding:10px}
+.team.me{border-color:var(--ac);box-shadow:0 0 0 1px var(--ac) inset}
+.team.top{border-color:var(--gold)}
+.team h3{margin:0;font-size:14px;display:flex;justify-content:space-between;gap:6px}
+.team h3 span{color:var(--gold);font-variant-numeric:tabular-nums}
+.team ul{margin:6px 0 0;padding-left:18px;font-size:13px}
+.team li small{color:var(--mut)}
+.team .slots{font-size:11px;color:var(--mut)}
+.log{font-size:12px;color:var(--mut);max-height:220px;overflow:auto}
+.log div{padding:2px 0;border-bottom:1px solid #ffffff08}
+</style>
+</head>
+<body>
+<div class="wrap" id="app">
+  <h1>💰 발로란트 <span>경매 내전</span></h1>
+  <div class="sub"><a href="./">← 내전 메이커로</a></div>
+  <div id="status" class="bar" hidden></div>
+
+  <!-- 방 만들기 -->
+  <div id="setup" hidden>
+    <div class="card" id="recentCard" hidden>
+      <h2>🕘 최근 만든 경매방</h2>
+      <div id="recent"></div>
+    </div>
+
+    <div class="card">
+      <h2>👑 팀장</h2>
+      <div id="caps"></div>
+      <div class="row" style="margin-top:6px">
+        <button id="capAdd">＋ 팀장 추가</button>
+        <input type="number" class="num" id="ptsAll" placeholder="포인트" min="1">
+        <button id="ptsApply">전원 포인트 적용</button>
+      </div>
+      <div class="note" style="margin-top:6px">팀장마다 다른 포인트를 줄 수도 있어요. 팀장 이름과 같은 선수는 경매 목록에서 자동으로 빠져요.</div>
+    </div>
+
+    <div class="card">
+      <h2>⚙️ 규칙</h2>
+      <div class="grid2">
+        <label>팀당 뽑는 인원<input type="number" id="slots" value="5" min="1" max="10"></label>
+        <label>최소 입찰가 (P)<input type="number" id="minBid" value="10" min="1"></label>
+        <label>입찰 단위 (P)<input type="number" id="step" value="10" min="1"></label>
+        <label>첫 입찰 대기 (초)<input type="number" id="first" value="20" min="5" max="120"></label>
+        <label>입찰 후 남는 시간 (초)<input type="number" id="ext" value="8" min="0" max="60"></label>
+      </div>
+      <div class="note" style="margin-top:8px">선수는 무작위 순서로 올라와요. 타이머가 끝나면 최고 입찰자가 낙찰되고, 입찰이 없으면 유찰돼요. 유찰된 선수는 마지막에 다시 올라오고, 그때도 입찰이 없으면 자리가 남은 팀에 0P로 무작위 배정돼요. 마감 직전에 입찰이 들어오면 남은 시간이 "입찰 후 남는 시간"만큼으로 늘어나요.</div>
+    </div>
+
+    <div class="card">
+      <h2>🙋 경매 선수 <span class="note" id="pcnt"></span></h2>
+      <div class="row">
+        <button class="gold" id="loadIn">내전 메이커 참석자 불러오기</button>
+        <button id="pClear">비우기</button>
+      </div>
+      <div class="row" style="margin-top:8px">
+        <input type="text" id="pAdd" placeholder="닉네임 (여러 명은 쉼표나 줄바꿈으로 구분)">
+        <button id="pAddBtn">추가</button>
+      </div>
+      <div class="pl" id="plist"></div>
+    </div>
+
+    <div class="row"><button class="pri" id="create" style="flex:1;padding:14px">🔨 경매방 만들기</button></div>
+    <div class="msg" id="createMsg"></div>
+  </div>
+
+  <!-- 방 만든 직후: 링크 나눠주기 -->
+  <div id="links" hidden>
+    <div class="card">
+      <h2>🔗 링크 나눠주기</h2>
+      <div class="note">팀장 링크는 팀장 본인에게만 따로 보내 주세요. 그 링크로 들어온 사람이 그 팀장으로 입찰해요.</div>
+      <div id="linkList" style="margin-top:8px"></div>
+      <div class="row" style="margin-top:10px">
+        <button class="gold" id="copyAll">📋 전체 복사</button>
+        <a id="goHost"><button class="pri">진행 화면 열기 →</button></a>
+      </div>
+    </div>
+  </div>
+
+  <!-- 경매 화면 -->
+  <div id="roomView" hidden>
+    <div class="room">
+      <div>
+        <div class="card stage" id="stage"></div>
+        <div class="card bidbox" id="bidbox" hidden></div>
+        <div class="card" id="hostbox" hidden>
+          <h2>🎙️ 진행자</h2>
+          <div class="row" id="hostBtns"></div>
+          <details style="margin-top:10px"><summary class="note" style="cursor:pointer">링크 다시 보기</summary><div id="hostLinks"></div></details>
+        </div>
+      </div>
+      <div>
+        <div class="card"><h2>🛡️ 팀 현황</h2><div class="teams" id="teams"></div></div>
+        <div class="card"><h2>⏳ 남은 선수 <span class="note" id="leftCnt"></span></h2><div class="pl" id="left" style="margin-top:0"></div></div>
+        <div class="card"><h2>📜 기록</h2><div class="log" id="log"></div></div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<script>
+(function(){
+// 배포된 Cloudflare Worker 주소. 로컬에서 열면 wrangler dev 서버를 쓴다.
+var PROD_API="https://valorant-auction.valorant-auction.workers.dev";
+var LOCAL=/^(localhost|127\.0\.0\.1)$/.test(location.hostname)||location.protocol==="file:";
+var API=LOCAL?"http://127.0.0.1:8787":PROD_API;
+var TIERS=[];["아이언","브론즈","실버","골드","플래티넘","다이아","초월자","불멸"].forEach(function(n){for(var i=1;i<=3;i++)TIERS.push(n+" "+i)});TIERS.push("레디언트");
+var AGI={};
+
+var $=function(i){return document.getElementById(i)};
+function esc(s){return String(s).replace(/[&<>"']/g,function(c){return{"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[c]})}
+function show(id,on){$(id).hidden=!on}
+function status(msg,bad){var e=$("status");e.hidden=!msg;e.textContent=msg||"";e.className="bar"+(bad?" bad":"")}
+function lsGet(k,d){try{var v=localStorage.getItem(k);return v?JSON.parse(v):d}catch(e){return d}}
+function lsSet(k,v){try{localStorage.setItem(k,JSON.stringify(v))}catch(e){}}
+function copy(text,btn){
+  function done(){if(btn){var o=btn.textContent;btn.textContent="✔ 복사됨";setTimeout(function(){btn.textContent=o},1200)}}
+  if(navigator.clipboard&&navigator.clipboard.writeText)navigator.clipboard.writeText(text).then(done,function(){prompt("복사해서 쓰세요",text)});
+  else prompt("복사해서 쓰세요",text);
+}
+function base(){return location.origin+location.pathname}
+function linkFor(room,key){return base()+"?r="+room+(key?"&k="+key:"")}
+function agIcons(ag){return (ag||[]).map(function(a){return AGI[a]?'<img src="'+esc(AGI[a])+'" title="'+esc(a)+'" alt="'+esc(a)+'">':'<small>'+esc(a)+'</small>'}).join("")}
+function loadAgents(cb){try{fetch("https://valorant-api.com/v1/agents?isPlayableCharacter=true").then(function(r){return r.json()}).then(function(j){(j.data||[]).forEach(function(a){AGI[a.displayName]=a.displayIcon});cb()}).catch(function(){})}catch(e){}}
+
+var q=new URLSearchParams(location.search),ROOM=q.get("r"),KEY=q.get("k")||"";
+if(ROOM)initRoom();else initSetup();
+
+/* ---------- 방 만들기 ---------- */
+function initSetup(){
+  show("setup",true);
+  var draft=lsGet("auc_draft",null)||{caps:[{name:"",points:1000},{name:"",points:1000}],players:[]};
+  var caps=draft.caps,P=draft.players;
+  ["slots","minBid","step","first","ext"].forEach(function(id){if(draft[id])$(id).value=draft[id]});
+  function save(){var d={caps:caps,players:P};["slots","minBid","step","first","ext"].forEach(function(id){d[id]=$(id).value});lsSet("auc_draft",d)}
+  function capNames(){return caps.map(function(c){return c.name.trim().toLowerCase()}).filter(Boolean)}
+  function renderCaps(){
+    $("caps").innerHTML=caps.map(function(c,i){return '<div class="caprow"><input type="text" maxlength="16" data-cn="'+i+'" placeholder="팀장 '+(i+1)+' 닉네임" value="'+esc(c.name)+'"><input type="number" class="num" min="1" data-cp="'+i+'" value="'+esc(c.points)+'"><button data-cx="'+i+'"'+(caps.length<=2?" disabled":"")+'>✕</button></div>'}).join("");
+    $("capAdd").disabled=caps.length>=10;
+  }
+  function renderP(){
+    var cn=capNames();
+    $("plist").innerHTML=P.map(function(p,i){var isCap=cn.indexOf(p.n.toLowerCase())>=0;
+      return '<span class="chip"'+(isCap?' style="opacity:.4" title="팀장이라 경매에서 빠져요"':'')+'>'+esc(p.n)+(p.tier?' <small>'+esc(p.tier)+'</small>':'')+'<button data-px="'+i+'">✕</button></span>'}).join("")||'<span class="note">아직 선수가 없어요</span>';
+    var n=P.filter(function(p){return cn.indexOf(p.n.toLowerCase())<0}).length;
+    var need=caps.length*(+$("slots").value||0);
+    $("pcnt").textContent=n+"명"+(need?" · 필요 "+need+"명":"");
+  }
+  function addNames(text){
+    var have={};P.forEach(function(p){have[p.n.toLowerCase()]=1});
+    text.split(/[\n,]/).map(function(s){return s.trim().slice(0,16)}).filter(Boolean).forEach(function(n){if(!have[n.toLowerCase()]){have[n.toLowerCase()]=1;P.push({n:n})}});
+  }
+  $("caps").oninput=function(e){var t=e.target;
+    if(t.dataset.cn)caps[+t.dataset.cn].name=t.value;
+    if(t.dataset.cp)caps[+t.dataset.cp].points=t.value;
+    save();renderP()};
+  $("caps").onclick=function(e){var i=e.target.dataset.cx;if(i==null)return;caps.splice(+i,1);save();renderCaps();renderP()};
+  $("capAdd").onclick=function(){caps.push({name:"",points:caps.length?caps[caps.length-1].points:1000});save();renderCaps();renderP()};
+  $("ptsApply").onclick=function(){var v=$("ptsAll").value;if(!v)return;caps.forEach(function(c){c.points=v});save();renderCaps()};
+  $("plist").onclick=function(e){var i=e.target.dataset.px;if(i==null)return;P.splice(+i,1);save();renderP()};
+  $("pAddBtn").onclick=function(){addNames($("pAdd").value);$("pAdd").value="";save();renderP()};
+  $("pAdd").onkeydown=function(e){if(e.key==="Enter")$("pAddBtn").onclick()};
+  $("pClear").onclick=function(){if(P.length&&confirm("선수 목록을 비울까요?")){P.length=0;save();renderP()}};
+  ["slots","minBid","step","first","ext"].forEach(function(id){$(id).oninput=function(){save();renderP()}});
+  $("loadIn").onclick=function(){
+    // 내전 메이커(index.html)가 같은 브라우저에 저장한 기록을 읽는다
+    var d=lsGet("scrim_db_cache",null);
+    if(!d){$("createMsg").textContent="이 브라우저에 내전 메이커 기록이 없어요";return}
+    (function(){
+      var prof={};Object.keys(d.profiles||{}).forEach(function(k){var p=d.profiles[k];if(p&&p.n)prof[p.n.toLowerCase()]=p});
+      var have={},added=0;P.forEach(function(p){have[p.n.toLowerCase()]=1});
+      Object.keys(d.players||{}).forEach(function(k){var p=d.players[k];if(!p||p.s!=="in"||!p.n||have[p.n.toLowerCase()])return;
+        var pr=prof[p.n.toLowerCase()]||{};have[p.n.toLowerCase()]=1;added++;
+        P.push({n:p.n,tier:pr.r?TIERS[Math.min(TIERS.length,Math.max(1,Math.round(pr.r)))-1]:"",ag:pr.ag||[]})});
+      save();renderP();$("createMsg").textContent=added?"":"새로 불러올 참석자가 없어요 (내전 메이커에서 '참석'한 사람만 불러와요)";
+    })();
+  };
+  $("create").onclick=function(){
+    var btn=$("create"),cn=capNames();
+    var body={caps:caps.map(function(c){return{name:c.name.trim(),points:Math.round(+c.points)}}),
+      players:P.filter(function(p){return cn.indexOf(p.n.toLowerCase())<0}),
+      slots:+$("slots").value,minBid:+$("minBid").value,step:+$("step").value,first:+$("first").value,ext:+$("ext").value};
+    $("createMsg").textContent="";btn.disabled=true;
+    fetch(API+"/rooms",{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify(body)}).then(function(r){return r.json()}).then(function(r){
+      if(r.err){$("createMsg").textContent=r.err;return}
+      var rec={room:r.room,hostKey:r.hostKey,keys:r.keys,caps:body.caps.map(function(c){return c.name}),at:Date.now()};
+      var list=lsGet("auc_rooms",[]);list.unshift(rec);lsSet("auc_rooms",list.slice(0,10));
+      show("setup",false);showLinks(rec);
+    }).catch(function(){$("createMsg").textContent="서버에 연결하지 못했어요"}).then(function(){btn.disabled=false});
+  };
+  var recent=lsGet("auc_rooms",[]);
+  if(recent.length){show("recentCard",true);
+    $("recent").innerHTML=recent.map(function(r,i){var d=new Date(r.at);
+      return '<div class="lk"><b>'+(d.getMonth()+1)+'/'+d.getDate()+' '+d.getHours()+':'+String(d.getMinutes()).padStart(2,"0")+'</b><code>'+esc(r.caps.join(", "))+'</code><button class="sm" data-rl="'+i+'">링크</button><a href="'+esc(linkFor(r.room,r.hostKey))+'"><button class="sm pri">진행</button></a></div>'}).join("");
+    $("recent").onclick=function(e){var i=e.target.dataset.rl;if(i==null)return;show("setup",false);showLinks(recent[+i])}}
+  renderCaps();renderP();
+}
+
+function linkRows(room,names,keys,hostKey){
+  var rows=[];
+  if(hostKey)rows.push({label:"🎙️ 진행자",url:linkFor(room,hostKey)});
+  names.forEach(function(n,i){rows.push({label:"👑 "+n,url:linkFor(room,keys[i])})});
+  rows.push({label:"👀 관전",url:linkFor(room)});
+  return rows;
+}
+function renderLinkRows(el,rows){
+  el.innerHTML=rows.map(function(r,i){return '<div class="lk"><b>'+esc(r.label)+'</b><code>'+esc(r.url)+'</code><button class="sm" data-cp="'+i+'">복사</button></div>'}).join("");
+  el.onclick=function(e){var i=e.target.dataset.cp;if(i!=null)copy(rows[+i].url,e.target)};
+}
+function showLinks(rec){
+  show("links",true);
+  var rows=linkRows(rec.room,rec.caps,rec.keys,rec.hostKey);
+  renderLinkRows($("linkList"),rows);
+  $("copyAll").onclick=function(e){copy(rows.filter(function(r){return r.label.indexOf("진행자")<0}).map(function(r){return r.label+"\n"+r.url}).join("\n\n"),e.target)};
+  $("goHost").href=linkFor(rec.room,rec.hostKey);
+}
+
+/* ---------- 경매 화면 ---------- */
+function initRoom(){
+  show("roomView",true);$("app").className="wrap wide";
+  var S=null,off=0,ws=null,retry=0,pinger=null,lastResAt=null,msgTimer=null;
+  status("연결 중…");
+  loadAgents(function(){if(S)render()});
+
+  function connect(){
+    ws=new WebSocket(API.replace(/^http/,"ws")+"/rooms/"+encodeURIComponent(ROOM)+"/ws"+(KEY?"?k="+encodeURIComponent(KEY):""));
+    ws.onopen=function(){retry=0;status("");clearInterval(pinger);pinger=setInterval(function(){try{ws.send("ping")}catch(e){}},25000)};
+    ws.onmessage=function(e){if(e.data==="pong")return;var m;try{m=JSON.parse(e.data)}catch(x){return}
+      if(m.t==="state"){S=m.s;off=S.now-Date.now();render()}
+      else if(m.t==="err")flash(m.msg)};
+    ws.onclose=function(e){clearInterval(pinger);
+      if(!S&&retry>=2){status("경매방을 찾을 수 없거나 서버에 연결할 수 없어요. 링크를 확인해 주세요.",true)}
+      else status("연결이 끊겼어요. 다시 연결하는 중…",true);
+      setTimeout(connect,Math.min(5000,800*(++retry)))};
+  }
+  function send(o){if(ws&&ws.readyState===1)ws.send(JSON.stringify(o));else flash("연결이 끊겨 있어요")}
+  function flash(m){var e=$("bidMsg")||$("hostMsg");if(!e){alert(m);return}e.textContent=m;clearTimeout(msgTimer);msgTimer=setTimeout(function(){e.textContent=""},3000)}
+  function now(){return Date.now()+off}
+  function me(){return S.role.cap}
+  function capLabel(i){return i>=0&&S.caps[i]?S.caps[i].name:""}
+
+  function render(){
+    document.title=(S.cur?S.cur.n+" · ":"")+"발로란트 경매 내전";
+    renderStage();renderBid();renderHost();renderTeams();renderLeft();
+    $("log").innerHTML=S.log.slice().reverse().map(function(l){var d=new Date(l.at);return '<div>'+String(d.getHours()).padStart(2,"0")+':'+String(d.getMinutes()).padStart(2,"0")+':'+String(d.getSeconds()).padStart(2,"0")+' · '+esc(l.msg)+'</div>'}).join("");
+  }
+  function roleBadge(){return S.role.host?"진행자":S.role.cap>=0?"팀장 "+capLabel(S.role.cap):"관전 중"}
+  function renderStage(){
+    var h='<div class="rd"><span class="badge">'+esc(roleBadge())+'</span> &nbsp;'+(S.round===2?"유찰 선수 재경매":"본 경매")+'</div>';
+    if(S.status==="lobby"){
+      h+='<div class="who">대기 중</div><div class="meta">선수 '+S.pool.length+'명 · 팀장 '+S.caps.length+'명 · 팀당 '+S.cfg.slots+'명</div><div class="note" style="margin-top:10px">진행자가 시작하면 선수가 무작위로 한 명씩 올라와요.</div>';
+    }else if(S.status==="done"){
+      h+='<div class="who">🏁 경매 종료</div><div class="meta">'+(S.unsold.length?"남은 선수: "+esc(S.unsold.join(", ")):"모든 선수가 팀을 찾았어요")+'</div><div class="row" style="justify-content:center;margin-top:12px"><button class="gold" id="copyRes">📋 결과 복사 (단톡방 공유용)</button></div>';
+    }else if(S.phase==="gap"&&S.last){
+      var L=S.last,lastAt=S.log.length?S.log[S.log.length-1].at:0,fresh=lastResAt!==lastAt;lastResAt=lastAt;
+      var info=S.info[L.n]||{};
+      h+='<div class="who">'+esc(L.n)+'</div><div class="meta">'+esc(info.tier||"")+agIcons(info.ag)+'</div>';
+      h+=L.type==="pass"?'<div class="res pass'+(fresh?' pop':'')+'">유찰 · 마지막에 다시 올라와요</div>'
+        :'<div class="res sold'+(fresh?' pop':'')+'">'+(L.type==="auto"?"자동 배정 → ":"낙찰 → ")+esc(capLabel(L.by))+' ('+L.price+'P)</div>';
+      h+='<div class="note" style="margin-top:8px">'+(S.status==="paused"?"일시정지됨":"잠시 후 다음 선수")+'</div>';
+    }else if(S.cur){
+      var c=S.cur,inf=S.info[c.n]||{};
+      h+='<div class="who">'+esc(c.n)+'</div><div class="meta">'+esc(inf.tier||"")+agIcons(inf.ag)+'</div>';
+      h+='<div class="price">'+(c.by>=0?c.bid+'P<small>최고 입찰: '+esc(capLabel(c.by))+(c.by===me()?" (나)":"")+'</small>':'—<small>시작가 '+S.cfg.minBid+'P · 아직 입찰 없음</small>')+'</div>';
+      h+='<div class="clock" id="clock"></div><div class="tbar"><i id="tbar"></i></div>';
+      if(S.status==="paused")h+='<div class="note" style="margin-top:6px">⏸️ 진행자가 일시정지했어요</div>';
+    }
+    $("stage").innerHTML=h;
+    if($("copyRes"))$("copyRes").onclick=function(e){copy(resultText(),e.target)};
+    tickClock();
+  }
+  function resultText(){
+    return "💰 경매 내전 결과\n"+S.caps.map(function(c){return "👑 "+c.name+" (남은 "+c.points+"P): "+c.team.map(function(t){return t.n+"("+t.price+")"}).join(", ")}).join("\n")+(S.unsold.length?"\n미배정: "+S.unsold.join(", "):"");
+  }
+  function minNext(){return !S.cur?null:S.cur.by<0?S.cfg.minBid:S.cur.bid+S.cfg.step}
+  function renderBid(){
+    var ci=me();show("bidbox",ci>=0);if(ci<0)return;
+    var c=S.caps[ci],full=c.team.length>=S.cfg.slots,open=S.status==="running"&&S.phase==="bid"&&S.cur;
+    var mn=minNext(),why=full?"팀이 다 찼어요":!open?"입찰 시간이 아니에요":S.cur.by===ci?"내가 최고 입찰자예요":mn>c.points?"포인트가 부족해요":"";
+    var amts=open?[mn,mn+S.cfg.step*4,mn+S.cfg.step*9]:[];
+    var h='<h2>🔨 내 입찰 <span class="note">남은 '+c.points+'P · '+c.team.length+'/'+S.cfg.slots+'명</span></h2>';
+    h+='<div class="big">'+(open?amts.map(function(a){return '<button class="'+(a===mn?"pri":"gold")+'" data-bid="'+a+'"'+(why||a>c.points?" disabled":"")+'>'+a+'P</button>'}).join(""):'<button disabled>—</button><button disabled>—</button><button disabled>—</button>')+'</div>';
+    h+='<div class="row" style="margin-top:8px"><input type="number" id="bidIn" placeholder="직접 입력 (P)" min="1"'+(why?" disabled":"")+'><button class="pri" id="bidGo"'+(why?" disabled":"")+'>입찰</button></div>';
+    h+='<div class="msg" id="bidMsg">'+esc(why&&open?why:"")+'</div>';
+    var keep=$("bidIn")&&document.activeElement===$("bidIn")?$("bidIn").value:null;
+    $("bidbox").innerHTML=h;
+    if(keep!=null){$("bidIn").value=keep;$("bidIn").focus()}
+    $("bidbox").onclick=function(e){var a=e.target.dataset.bid;if(a)send({t:"bid",amount:+a})};
+    $("bidGo").onclick=function(){var v=Math.round(+$("bidIn").value);if(!v)return;send({t:"bid",amount:v});$("bidIn").value=""};
+    $("bidIn").onkeydown=function(e){if(e.key==="Enter")$("bidGo").onclick()};
+  }
+  function renderHost(){
+    show("hostbox",S.role.host);if(!S.role.host)return;
+    var b=S.status==="lobby"?'<button class="pri" data-h="start">▶️ 경매 시작</button>':S.status==="running"?'<button data-h="pause">⏸️ 일시정지</button>':S.status==="paused"?'<button class="pri" data-h="resume">▶️ 재개</button>':'<span class="note">경매가 끝났어요</span>';
+    $("hostBtns").innerHTML=b+'<span class="msg" id="hostMsg" style="margin:0"></span>';
+    $("hostBtns").onclick=function(e){var t=e.target.dataset.h;if(t)send({t:t})};
+    if(S.keys&&!$("hostLinks").childNodes.length)renderLinkRows($("hostLinks"),linkRows(ROOM,S.caps.map(function(c){return c.name}),S.keys,null));
+  }
+  function renderTeams(){
+    var top=S.cur&&S.cur.by;
+    $("teams").innerHTML=S.caps.map(function(c,i){
+      return '<div class="team'+(i===me()?" me":"")+(S.status==="running"&&S.phase==="bid"&&i===top?" top":"")+'"><h3>'+esc(c.name)+'<span>'+c.points+'P</span></h3><div class="slots">'+c.team.length+'/'+S.cfg.slots+'명 · 사용 '+(c.start-c.points)+'P</div><ul>'+c.team.map(function(t){return '<li>'+esc(t.n)+' <small>'+t.price+'P</small></li>'}).join("")+'</ul></div>'}).join("");
+  }
+  function renderLeft(){
+    function chip(n,cls){var i=S.info[n]||{};return '<span class="chip '+(cls||"")+'">'+esc(n)+(i.tier?' <small>'+esc(i.tier)+'</small>':'')+'</span>'}
+    var list=S.pool.slice().sort().map(function(n){return chip(n)}).concat(S.passed.map(function(n){return chip(n,"pass")}));
+    $("left").innerHTML=list.join("")||'<span class="note">없음</span>';
+    $("leftCnt").textContent=S.pool.length+"명"+(S.passed.length?" · 유찰 "+S.passed.length+"명 (점선)":"");
+  }
+  function tickClock(){
+    var el=$("clock");if(!el||!S||!S.cur)return;
+    var total=S.cfg.first*1000,left=S.status==="paused"?S.left:Math.max(0,S.wake-now());
+    el.textContent=(left/1000).toFixed(1);el.className="clock"+(left<5000?" hot":"");
+    $("tbar").style.width=Math.min(100,left/total*100)+"%";
+  }
+  setInterval(tickClock,100);
+  connect();
+}
+})();
+</script>
+</body>
+</html>

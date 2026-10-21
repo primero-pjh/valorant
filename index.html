@@ -53,7 +53,7 @@ button:disabled{opacity:.45;cursor:not-allowed}
 <body>
 <div class="wrap">
   <h1>⚔️ 발로란트 <span>내전 메이커</span></h1>
-  <div class="sub">VER. <span id="ver">v1.1.0-Pages</span> · 업데이트 <span id="vdate">2026-10-22</span> · 맵풀 기준: V26 Act 6 (패치 13.08)</div>
+  <div class="sub">VER. <span id="ver">v1.2.0</span> · 업데이트 <span id="vdate">2026-10-22</span> · 맵풀 기준: V26 Act 6 (패치 13.08) · <a href="auction.html" style="color:var(--gold)">💰 경매 내전</a></div>
   <div id="status" class="bar">연결 중…</div>
 
   <div class="card">
@@ -120,10 +120,9 @@ button:disabled{opacity:.45;cursor:not-allowed}
   </div>
 
   <div class="card">
-    <h2>💾 데이터 (data.json) <span class="note" id="dbst"></span></h2>
-    <div class="note">모든 기록은 GitHub 레포의 <a id="dblink" target="_blank" rel="noopener" style="color:var(--gold)">data.json</a>에 저장되고, 누구나 열면 불러와져요. 저장은 GitHub 토큰을 등록한 기기에서만 돼요.</div>
-    <div class="row" style="margin-top:8px"><input type="password" id="tok" placeholder="GitHub 토큰 (github_pat_… 또는 ghp_…)" autocomplete="off"><button class="gold" id="tokset">토큰 등록</button><button id="tokdel">해제</button><button id="dbref">🔄 불러오기</button></div>
-    <div class="note">토큰 만들기: GitHub → Settings → Developer settings → Fine-grained tokens → 레포 <b>valorant</b>만 선택 → Contents: <b>Read and write</b>. 토큰은 이 브라우저에만 보관돼요.</div>
+    <h2>💾 데이터</h2>
+    <div class="note">모든 기록은 이 브라우저에만 저장돼요. 다른 기기로 옮기려면 백업 파일을 내려받아 그 기기에서 불러오세요.</div>
+    <div class="row" style="margin-top:8px"><button class="gold" id="dbexp">⬇️ 백업 내려받기</button><button id="dbimpb">⬆️ 백업 불러오기</button><input type="file" id="dbimp" accept=".json,application/json" hidden></div>
   </div>
 
   <div class="card diag">
@@ -134,7 +133,7 @@ button:disabled{opacity:.45;cursor:not-allowed}
 
 <script>
 (function(){
-var VER="v1.1.0-Pages",VDATE="2026-10-22";
+var VER="v1.2.0",VDATE="2026-10-22";
 var DEFAULT_POOL=["Abyss","Bind","Corrode","Haven","Lotus","Summit","Sunset"];
 var db=null,uid=null,me=null;
 var S={cfg:{},players:{},teams:null,maps:{disabled:[],custom:[],used:[],last:[]},mode:2,prof:{},matches:[]};
@@ -144,25 +143,12 @@ function esc(s){return String(s).replace(/[&<>"']/g,function(c){return{"&":"&amp
 function sh(a){a=a.slice();for(var i=a.length-1;i>0;i--){var j=Math.floor(Math.random()*(i+1));var t=a[i];a[i]=a[j];a[j]=t}return a}
 
 
-function makeGhDb(){
-  var OWNER="primero-pjh",REPO="valorant",FILE="data.json",BR="main";
-  var API="https://api.github.com/repos/"+OWNER+"/"+REPO+"/contents/"+FILE,CK="scrim_db_cache",TK="scrim_gh_token";
-  var D,L=[],errs=[],stl=[],ops=[],saving=null,timer=null,poller=null;
+// 이 브라우저(localStorage)에만 저장하는 DB. 기존 data.json 연동과 같은 인터페이스를 유지한다.
+function makeLocalDb(){
+  var CK="scrim_db_cache",D,L=[];
   function empty(o){o=(o&&typeof o==="object")?o:{};["players","config","profiles","matches"].forEach(function(c){if(!o[c]||typeof o[c]!=="object")o[c]={}});return o}
   try{D=empty(JSON.parse(localStorage.getItem(CK)))}catch(e){D=empty()}
-  function token(){try{return localStorage.getItem(TK)||""}catch(e){return ""}}
-  function hdr(){var h={"Accept":"application/vnd.github+json"},t=token();if(t)h.Authorization="Bearer "+t;return h}
-  function b64d(s){var b=atob(s.replace(/\n/g,"")),u=new Uint8Array(b.length);for(var i=0;i<b.length;i++)u[i]=b.charCodeAt(i);return new TextDecoder().decode(u)}
-  function b64e(s){var u=new TextEncoder().encode(s),b="";for(var i=0;i<u.length;i+=0x8000)b+=String.fromCharCode.apply(null,u.subarray(i,i+0x8000));return btoa(b)}
-  function state(s,msg){stl.forEach(function(f){f(s,msg)})}
-  function fail(e){var m=String(e&&(e.code||e.message)||e);errs.forEach(function(f){f({code:m})});state("error",m)}
   function cache(){try{localStorage.setItem(CK,JSON.stringify(D))}catch(e){}}
-  function fetchRemote(){
-    return fetch(API+"?ref="+BR+"&t="+Date.now(),{headers:hdr(),cache:"no-store"}).then(function(r){
-      if(r.status===404)return{data:empty(),sha:null};
-      if(r.status===403||r.status===429)throw{code:"GitHub 요청 한도 초과 — 잠시 후 다시 시도하세요"};
-      if(!r.ok)throw{code:"불러오기 실패 (HTTP "+r.status+")"};
-      return r.json().then(function(j){return{data:empty(JSON.parse(b64d(j.content)||"{}")),sha:j.sha}})})}
   function applyOp(d,op){
     var p=op.p.split("/"),c=p[0],id=p[1];if(!d[c])d[c]={};
     if(op.t==="set"){d[c][id]=JSON.parse(JSON.stringify(op.d));
@@ -172,53 +158,24 @@ function makeGhDb(){
   function dsnap(path){var v=sliceOf(path);return{id:path.split("/").pop(),exists:v!==undefined&&v!==null,data:function(){return v}}}
   function qsnap(path){var o=D[path]||{},docs=Object.keys(o).map(function(k){var v=o[k];return{id:k,exists:true,data:function(){return v}}});return{docs:docs,size:docs.length,empty:!docs.length}}
   function notify(){L.forEach(function(l){var sg=JSON.stringify(l.sig());if(sg!==l.last){l.last=sg;l.next(l.mk())}})}
-  function pull(){
-    if(ops.length||saving)return Promise.resolve();
-    state("loading");
-    return fetchRemote().then(function(r){if(ops.length||saving)return;D=r.data;cache();notify();state("loaded")}).catch(fail)}
-  function startPoll(){if(poller)clearInterval(poller);poller=setInterval(function(){if(!document.hidden)pull()},token()?30000:120000)}
-  document.addEventListener("visibilitychange",function(){if(!document.hidden)pull()});
-  // 저장 시점에 원격 최신본을 받아 대기 중인 변경만 덮어써서 다른 기기의 변경을 지우지 않음
-  function flush(){
-    if(saving||!ops.length)return;
-    var batch=ops.splice(0);state("saving");
-    saving=(function attempt(n){return fetchRemote().then(function(r){
-      var d=r.data;batch.forEach(function(op){applyOp(d,op)});
-      var body={message:"data: "+batch.map(function(o){return o.t+" "+o.p}).slice(0,3).join(", ")+(batch.length>3?" 외 "+(batch.length-3)+"건":""),content:b64e(JSON.stringify(d,null,2)+"\n"),branch:BR};
-      if(r.sha)body.sha=r.sha;
-      return fetch(API,{method:"PUT",headers:Object.assign(hdr(),{"Content-Type":"application/json"}),body:JSON.stringify(body)}).then(function(res){
-        if((res.status===409||res.status===422)&&n<3)return attempt(n+1);
-        if(res.status===401||res.status===403||res.status===404)throw{code:"토큰 권한이 없어요 (HTTP "+res.status+")"};
-        if(!res.ok)throw{code:"저장 실패 (HTTP "+res.status+")"};
-        return d})})})(0);
-    saving.then(function(d){saving=null;D=d;ops.forEach(function(op){applyOp(D,op)});cache();notify();state("saved");if(ops.length)schedule()},
-      function(e){saving=null;ops=batch.concat(ops);fail(e)})}
-  function schedule(){clearTimeout(timer);timer=setTimeout(flush,1500)}
+  // 같은 브라우저의 다른 탭에서 바꾼 내용도 반영
+  window.addEventListener("storage",function(e){if(e.key!==CK)return;try{D=empty(JSON.parse(e.newValue))}catch(x){D=empty()}notify()});
   function write(path,kind,data){
-    var op={t:kind,p:path,d:data===undefined?null:JSON.parse(JSON.stringify(data))};
-    applyOp(D,op);cache();notify();
-    if(token()){ops.push(op);schedule()}else state("readonly");
-    return Promise.resolve()}
-  function sub(sig,mk,next,err){var l={sig:sig,mk:mk,next:next,last:"__init__"};L.push(l);if(err&&errs.indexOf(err)<0)errs.push(err);notify();
+    applyOp(D,{t:kind,p:path,d:data===undefined?null:JSON.parse(JSON.stringify(data))});
+    cache();notify();return Promise.resolve()}
+  function sub(sig,mk,next){var l={sig:sig,mk:mk,next:next,last:"__init__"};L.push(l);notify();
     return function(){var i=L.indexOf(l);if(i>=0)L.splice(i,1)}}
   function doc(path){return{id:path.split("/").pop(),path:path,
     get:function(){return Promise.resolve(dsnap(path))},
     set:function(d){return write(path,"set",d)},
     update:function(d){return write(path,"set",Object.assign({},sliceOf(path),d))},
     delete:function(){return write(path,"del")},
-    onSnapshot:function(n,e){return sub(function(){return sliceOf(path)},function(){return dsnap(path)},n,e)}}}
+    onSnapshot:function(n){return sub(function(){return sliceOf(path)},function(){return dsnap(path)},n)}}}
   function collection(path){return{path:path,doc:function(id){return doc(path+"/"+id)},
-    onSnapshot:function(n,e){return sub(function(){return D[path]},function(){return qsnap(path)},n,e)}}}
-  function setToken(t){
-    if(!t){try{localStorage.removeItem(TK)}catch(e){}startPoll();state("readonly");return Promise.resolve(false)}
-    return fetch("https://api.github.com/repos/"+OWNER+"/"+REPO,{headers:{"Accept":"application/vnd.github+json","Authorization":"Bearer "+t}}).then(function(r){
-      if(!r.ok)throw{code:"토큰이 올바르지 않아요 (HTTP "+r.status+")"};
-      return r.json()}).then(function(j){
-      if(j.permissions&&j.permissions.push===false)throw{code:"이 토큰은 레포에 쓰기 권한이 없어요"};
-      try{localStorage.setItem(TK,t)}catch(e){}startPoll();state("ready");return true})}
-  startPoll();pull();
-  return{doc:doc,collection:collection,refresh:pull,setToken:setToken,hasToken:function(){return !!token()},
-    onState:function(f){stl.push(f)},fileUrl:"https://github.com/"+OWNER+"/"+REPO+"/blob/"+BR+"/"+FILE};
+    onSnapshot:function(n){return sub(function(){return D[path]},function(){return qsnap(path)},n)}}}
+  return{doc:doc,collection:collection,
+    exportJson:function(){return JSON.stringify(D,null,2)},
+    importJson:function(t){var o=JSON.parse(t);if(!o||typeof o!=="object")throw new Error("bad");D=empty(o);cache();notify()}};
 }
 
 function splitTeams(names,mode){
@@ -292,7 +249,7 @@ function runDiag(){
   var a=pickMaps(DEFAULT_POOL,[],3);t("맵 3개 뽑기 중복 없음",new Set(a.picked).size===3);
   var b=pickMaps(DEFAULT_POOL,DEFAULT_POOL.slice(0,6),1);t("중복제외 (남은 1개만 뽑힘)",b.picked[0]===DEFAULT_POOL[6]);
   var c=pickMaps(DEFAULT_POOL,DEFAULT_POOL.slice(),1);t("전부 사용 시 자동 초기화",c.reset&&c.picked.length===1);
-  t("data.json DB 연결",!!db);
+  t("로컬 저장소 연결",!!db);
   t("사용자 ID 생성",!!uid);
   $("dg").innerHTML=out.join("<br>")+"<br>"+(ok?"→ 모든 항목 정상 ("+VER+")":"→ 일부 항목 이상");
   return ok;
@@ -470,21 +427,20 @@ async function init(){
   try{var n=localStorage.getItem("scrim_nm");if(n)$("nm").value=n}catch(e){}
   renderAll();runDiag();loadAgents();
   try{
-    db=makeGhDb();
+    db=makeLocalDb();
   }catch(e){db=null}
   if(!uid){try{uid=localStorage.getItem("scrim_uid");if(!uid){uid="g"+Math.random().toString(36).slice(2,10);localStorage.setItem("scrim_uid",uid)}}catch(e){uid="g"+Math.random().toString(36).slice(2,10)}}
   if(!db){status("⚠️ 데이터를 불러올 수 없어요.",true);runDiag();return}
-  $("dblink").href=db.fileUrl;
-  var STM={loading:["🔄 data.json 불러오는 중…"],loaded:[null],saving:["💾 data.json에 저장 중…"],saved:["✅ data.json에 저장됨"],ready:["🔑 토큰 등록됨 · 이제 변경 사항이 data.json에 저장돼요"],
-    readonly:["👀 읽기 전용 · 토큰이 없어 이 변경은 data.json에 저장되지 않아요 (새로고침하면 사라져요)",1],error:[null,1]};
-  function base(){return db.hasToken()?"🟢 data.json 연결됨 · 변경 시 자동 저장":"👀 data.json 불러옴 · 읽기 전용 (저장하려면 아래에서 토큰 등록)"}
-  db.onState(function(s,m){var x=STM[s]||[null];status(s==="error"?"⚠️ "+m:(x[0]||base()),!!x[1]);$("dbst").textContent=db.hasToken()?"(쓰기 가능)":"(읽기 전용)"});
-  $("dbst").textContent=db.hasToken()?"(쓰기 가능)":"(읽기 전용)";
-  $("tokset").onclick=function(){var t=$("tok").value.trim();if(!t){$("tok").focus();return}
-    db.setToken(t).then(function(){$("tok").value=""},function(e){status("⚠️ "+((e&&e.code)||e),true)})};
-  $("tokdel").onclick=function(){if(confirm("이 기기에서 토큰을 지울까요?"))db.setToken("")};
-  $("dbref").onclick=function(){db.refresh()};
-  var er=function(e){status("동기화 오류: "+((e&&e.code)||e),true)};
+  status("💾 이 브라우저에 자동 저장돼요");
+  $("dbexp").onclick=function(){var a=document.createElement("a"),d=new Date();
+    a.href=URL.createObjectURL(new Blob([db.exportJson()],{type:"application/json"}));
+    a.download="scrim-backup-"+d.getFullYear()+String(d.getMonth()+1).padStart(2,"0")+String(d.getDate()).padStart(2,"0")+".json";
+    document.body.appendChild(a);a.click();a.remove()};
+  $("dbimpb").onclick=function(){$("dbimp").click()};
+  $("dbimp").onchange=function(){var f=this.files[0];this.value="";if(!f)return;
+    if(!confirm("지금 이 브라우저의 기록을 백업 파일 내용으로 바꿀까요?"))return;
+    f.text().then(function(t){db.importJson(t);status("✅ 백업을 불러왔어요")}).catch(function(){status("⚠️ 백업 파일을 읽을 수 없어요",true)})};
+  var er=function(e){status("오류: "+((e&&e.code)||e),true)};
   db.collection("players").onSnapshot(function(s){S.players={};s.docs.forEach(function(d){S.players[d.id]=d.data()});renderPlayers()},er);
   db.doc("config/main").onSnapshot(function(s){S.cfg=s.exists?s.data():{};renderCfg()},er);
   db.doc("config/teams").onSnapshot(function(s){S.teams=s.exists?s.data():null;renderTeams()},er);
